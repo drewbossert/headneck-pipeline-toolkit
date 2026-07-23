@@ -22,54 +22,60 @@
 %   <time_range>
 %   <output_motion_file>
 
-%% SECTION 0 — USER CONFIGURATION
+%% SECTION 0 — PROJECT LOCATION
 
 clear;
 clc;
-
-% Stop exactly where an error occurs while validating the first trials.
 dbstop if error
 
-cfg = struct;
+scriptFile = string(mfilename("fullpath"));
+examplesDirectory = string(fileparts(scriptFile));
+projectRoot = string(fileparts(examplesDirectory));
 
-% Toolkit root: add the folder containing +opensimio, +modelprep,
-% and +opensimrun. Do not add the package folders themselves.
-cfg.toolkitRoot = ...
-    "C:\Users\drewbossert\Code\headneck_pipeline_toolkit";
+addpath(projectRoot);
 
-% Trial identity.
-cfg.conditionDeg = 0;
-cfg.trialNumber = 1;
+projectCfg = load_project_config();
 
-% Clean source inputs.
-cfg.baseModelFile = ...
-    "C:\path\to\models\infant_4mo_scaled_base.osim";
+fprintf("Project root:\n%s\n", projectRoot);
 
-cfg.markerFile = ...
-    "C:\path\to\markers\condition00_trial01.trc";
+trialCfg = struct;
 
-cfg.ikTemplateFile = ...
-    "C:\path\to\templates\ik_setup_template.xml";
+trialCfg.conditionDeg = 0;
+trialCfg.trialNumber = 1;
 
-% Time range must lie within the marker file. Enter the verified trial
-% range used in the existing working IK setup.
-cfg.initialTime = 0.00;
-cfg.finalTime = 19.99;
+trialCfg.baseModelFile = fullfile( ...
+    projectRoot, ...
+    "models", ...
+    "infant_4mo_scaled_base.osim");
 
-% Output root for this validation project.
-cfg.projectOutputRoot = ...
-    "C:\path\to\infant_head_neck_reprocessing\output";
+trialCfg.markerFile = fullfile( ...
+    projectRoot, ...
+    "input", ...
+    "markers", ...
+    "condition00_trial01.trc");
 
-% Execution controls.
-cfg.overwriteExisting = true;
-cfg.executeIk = true;
+trialCfg.ikTemplateFile = fullfile( ...
+    projectRoot, ...
+    "input", ...
+    "templates", ...
+    "ik_setup_template.xml");
+
+projectCfg.outputRoot = fullfile( ...
+    projectRoot, ...
+    "output");
+
+trialCfg.initialTime = 0.00;
+trialCfg.finalTime = 19.99;
+
+projectCfg.overwriteExisting = true;
+trialCfg.executeIk = false;
 
 % Expected model structure.
-cfg.expectedCoordinateCount = 30;
-cfg.expectedConstraintCount = 18;
+trialCfg.expectedCoordinateCount = 30;
+trialCfg.expectedConstraintCount = 18;
 
 % Coordinates highlighted in the first-pass audit.
-cfg.reviewCoordinates = [ ...
+trialCfg.reviewCoordinates = [ ...
     "pitch2"
     "roll2"
     "yaw2"
@@ -97,16 +103,16 @@ cfg.reviewCoordinates = [ ...
 ];
 
 fprintf("Configured condition %g deg, trial %d.\n", ...
-    cfg.conditionDeg, cfg.trialNumber);
+    trialCfg.conditionDeg, trialCfg.trialNumber);
 
 
 %% SECTION 1 — INITIALIZE TOOLKIT AND VALIDATE INPUTS
 
-assert(isfolder(cfg.toolkitRoot), ...
+assert(isfolder(projectCfg.projectRoot), ...
     "TrialPipeline:ToolkitNotFound", ...
-    "Toolkit root was not found:\n%s", cfg.toolkitRoot);
+    "Toolkit root was not found:\n%s", projectCfg.projectRoot);
 
-addpath(cfg.toolkitRoot);
+addpath(projectCfg.projectRoot);
 
 % Confirm that MATLAB resolves the intended package functions.
 requiredFunctions = [ ...
@@ -131,9 +137,9 @@ for functionName = requiredFunctions.'
 end
 
 inputFiles = [ ...
-    string(cfg.baseModelFile)
-    string(cfg.markerFile)
-    string(cfg.ikTemplateFile)
+    string(trialCfg.baseModelFile)
+    string(trialCfg.markerFile)
+    string(trialCfg.ikTemplateFile)
 ];
 
 inputLabels = [ ...
@@ -149,7 +155,7 @@ for inputIndex = 1:numel(inputFiles)
         inputLabels(inputIndex), inputFiles(inputIndex));
 end
 
-assert(cfg.finalTime > cfg.initialTime, ...
+assert(trialCfg.finalTime > trialCfg.initialTime, ...
     "TrialPipeline:InvalidTimeRange", ...
     "finalTime must be greater than initialTime.");
 
@@ -159,13 +165,13 @@ fprintf("Input validation passed.\n");
 %% SECTION 2 — DEFINE TRIAL OUTPUT PATHS
 
 conditionFolderName = sprintf( ...
-    "%02ddeg", round(cfg.conditionDeg));
+    "%02ddeg", round(trialCfg.conditionDeg));
 
 trialFolderName = sprintf( ...
-    "trial%02d", cfg.trialNumber);
+    "trial%02d", trialCfg.trialNumber);
 
 trialRoot = fullfile( ...
-    cfg.projectOutputRoot, ...
+    projectCfg.outputRoot, ...
     conditionFolderName, ...
     trialFolderName);
 
@@ -227,13 +233,13 @@ disp(paths);
 
 %% SECTION 3 — BUILD MODEL A
 
-if isfile(paths.modelAFile) && ~cfg.overwriteExisting
+if isfile(paths.modelAFile) && ~projectCfg.overwriteExisting
     error("TrialPipeline:OutputExists", ...
         "Model A already exists:\n%s", paths.modelAFile);
 end
 
 modelAResult = modelprep.buildInitializationModel( ...
-    cfg.baseModelFile, ...
+    trialCfg.baseModelFile, ...
     paths.modelAFile);
 
 fprintf("Model A written:\n%s\n", paths.modelAFile);
@@ -257,15 +263,15 @@ constraintCount = height(modelAInspection.Constraints);
 fprintf("Coordinate count: %d\n", coordinateCount);
 fprintf("Constraint count: %d\n", constraintCount);
 
-assert(coordinateCount == cfg.expectedCoordinateCount, ...
+assert(coordinateCount == trialCfg.expectedCoordinateCount, ...
     "TrialPipeline:UnexpectedCoordinateCount", ...
     "Expected %d coordinates but found %d.", ...
-    cfg.expectedCoordinateCount, coordinateCount);
+    trialCfg.expectedCoordinateCount, coordinateCount);
 
-assert(constraintCount == cfg.expectedConstraintCount, ...
+assert(constraintCount == trialCfg.expectedConstraintCount, ...
     "TrialPipeline:UnexpectedConstraintCount", ...
     "Expected %d constraints but found %d.", ...
-    cfg.expectedConstraintCount, constraintCount);
+    trialCfg.expectedConstraintCount, constraintCount);
 
 allCoordinateNames = ...
     modelAInspection.Coordinates.Coordinate;
@@ -287,22 +293,22 @@ fprintf([ ...
 
 %% SECTION 5 — CREATE THE TRIAL-SPECIFIC IK SETUP
 
-if isfile(paths.ikSetupFile) && ~cfg.overwriteExisting
+if isfile(paths.ikSetupFile) && ~projectCfg.overwriteExisting
     error("TrialPipeline:OutputExists", ...
         "IK setup already exists:\n%s", paths.ikSetupFile);
 end
 
 ikSetupResult = opensimrun.prepareInverseKinematicsSetup( ...
-    cfg.ikTemplateFile, ...
+    trialCfg.ikTemplateFile, ...
     paths.ikSetupFile, ...
     "ModelFile", paths.modelAFile, ...
-    "MarkerFile", cfg.markerFile, ...
+    "MarkerFile", trialCfg.markerFile, ...
     "OutputMotionFile", paths.ikMotionFile, ...
-    "TimeRange", [cfg.initialTime, cfg.finalTime], ...
+    "TimeRange", [trialCfg.initialTime, trialCfg.finalTime], ...
     "ToolName", sprintf( ...
         "%s_%s_initialization_ik", ...
         conditionFolderName, trialFolderName), ...
-    "Overwrite", cfg.overwriteExisting);
+    "Overwrite", projectCfg.overwriteExisting);
 
 disp(ikSetupResult.PatchReport);
 
@@ -317,15 +323,15 @@ fprintf("Patched IK setup written:\n%s\n", ...
 
 %% SECTION 6 — RUN INITIALIZATION IK
 
-if ~cfg.executeIk
+if ~trialCfg.executeIk
     fprintf([ ...
-        "IK execution is disabled. Set cfg.executeIk=true after " ...
+        "IK execution is disabled. Set trialCfg.executeIk=true after " ...
         "reviewing the setup file.\n"]);
 else
     ikRunResult = opensimrun.runInverseKinematicsSetup( ...
         paths.ikSetupFile, ...
         "ExpectedOutputMotionFile", paths.ikMotionFile, ...
-        "Overwrite", cfg.overwriteExisting);
+        "Overwrite", projectCfg.overwriteExisting);
 
     fprintf("Initialization IK completed in %.3f seconds.\n", ...
         ikRunResult.DurationSeconds);
@@ -477,7 +483,7 @@ disp(attentionAudit);
 %% SECTION 8 — SAVE CHECKPOINT AND REPORT NEXT ACTION
 
 checkpoint = struct;
-checkpoint.Configuration = cfg;
+checkpoint.Configuration = trialCfg;
 checkpoint.Paths = paths;
 checkpoint.ModelAResult = modelAResult;
 checkpoint.ModelAValidation = modelAValidation;

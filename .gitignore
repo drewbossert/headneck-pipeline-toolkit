@@ -25,7 +25,7 @@ input/contact_intervals/**
 # Local machine configuration
 # ============================================================
 
-config/local_config.m
+config/project_local.m
 config/local_paths.m
 **/local_config.m
 **/local_paths.m
