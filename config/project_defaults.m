@@ -55,3 +55,35 @@ cfg.maxWorkers = 4;
 cfg.requireKinematicBaseModel = true;
 cfg.requireScalingBaseModel = true;
 cfg.requireInitializationIkTemplate = true;
+
+%% Locked-coordinate audit criteria
+
+cfg.qc.lockAudit = struct;
+
+cfg.qc.lockAudit.statistic = "median";
+
+cfg.qc.lockAudit.rotationRangeTolerance = 1e-6;
+cfg.qc.lockAudit.translationRangeToleranceM = 1e-10;
+cfg.qc.lockAudit.otherRangeToleranceSI = 1e-10;
+
+cfg.qc.lockAudit.rotationMatchToleranceDeg = 1e-5;
+cfg.qc.lockAudit.translationMatchToleranceM = 1e-9;
+cfg.qc.lockAudit.otherMatchToleranceSI = 1e-9;
+
+cfg.qc.lockAudit.minimumSamples = 2;
+cfg.qc.lockAudit.requirePass = true;
+
+%% Model B lock-value extraction criteria
+
+cfg.qc.lockExtraction = struct;
+
+% Statistic used to define the coordinate default and lock value.
+cfg.qc.lockExtraction.statistic = "median";
+
+% Maximum coordinate range allowed within the selected initial support window before the value is considered unstable.
+cfg.qc.lockExtraction.rotationToleranceDeg = 0.05;
+cfg.qc.lockExtraction.translationToleranceM = 1e-5;
+cfg.qc.lockExtraction.otherToleranceSI = 1e-8;
+
+cfg.qc.lockExtraction.minimumSamples = 10;
+cfg.qc.lockExtraction.requireStable = true;
