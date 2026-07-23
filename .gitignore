@@ -1,0 +1,75 @@
+# ============================================================
+# Generated pipeline outputs
+# ============================================================
+
+output/**
+!output/.gitkeep
+
+# Trial-specific or generated model files
+models/generated/**
+models/trial_specific/**
+models/locked/**
+models/generated_trials/**
+
+# Raw or local trial data
+input/trial_data/**
+input/markers/**
+input/raw/**
+input/contact_intervals/**
+
+# Keep reusable templates under input/templates
+!input/templates/
+!input/templates/**
+
+# ============================================================
+# Local machine configuration
+# ============================================================
+
+config/local_config.m
+config/local_paths.m
+**/local_config.m
+**/local_paths.m
+
+# ============================================================
+# MATLAB-generated files
+# ============================================================
+
+*.asv
+*.autosave
+*.m~
+*.slxc
+*.mexw32
+*.mexw64
+*.mexa64
+*.mexmaci64
+
+# Temporary MATLAB and test artifacts
+*.tmp
+*.bak
+*.log
+*.diary
+
+# ============================================================
+# Operating system and editor files
+# ============================================================
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.vscode/settings.json
+.idea/
+
+# ============================================================
+# Large or packaged local artifacts
+# ============================================================
+
+*.zip
+*.7z
+*.rar
+
+# Uncomment only when these shouldn't be versioned
+# *.mat
+# *.stl
+# *.vtp
+# *.obj
