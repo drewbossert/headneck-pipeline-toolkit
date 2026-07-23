@@ -31,7 +31,7 @@ function cfg = load_project_config(varargin)
     %% Locate repository
 
     loaderFile = string(mfilename("fullpath"));
-    projectRoot = string(fileparts(loaderFile))
+    projectRoot = string(fileparts(loaderFile));
 
     defaultsFile = fullfile( ...
         projectRoot, ...
