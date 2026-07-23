@@ -4,11 +4,14 @@ function result = runInverseKinematicsSetup(setupFile, varargin)
 % result = opensimrun.runInverseKinematicsSetup(setupFile)
 %
 % Name-value options:
+%   ModelInput                "" uses <model_file> from XML
+%                             May be an .osim path or OpenSim Model object
 %   ExpectedOutputMotionFile  "" reads <output_motion_file> from XML
 %   Overwrite                 true
 %
-% The returned result includes Tool, SetupFile, OutputMotionFile,
-% RunSucceeded, Motion, and DurationSeconds.
+% When ModelInput is supplied, the setup is loaded without requesting that
+% OpenSim load a model from <model_file>. The supplied model is finalized,
+% initialized, and attached directly through InverseKinematicsTool.setModel.
 
     import org.opensim.modeling.*
 
@@ -18,6 +21,8 @@ function result = runInverseKinematicsSetup(setupFile, varargin)
 
     addRequired(parser, "setupFile", ...
         @opensimrun.internal.isTextScalar);
+
+    addParameter(parser, "ModelInput", "");
 
     addParameter(parser, "ExpectedOutputMotionFile", "", ...
         @opensimrun.internal.isTextScalar);
@@ -56,7 +61,39 @@ function result = runInverseKinematicsSetup(setupFile, varargin)
         end
     end
 
-    tool = InverseKinematicsTool(char(setupFile));
+    modelInput = parser.Results.ModelInput;
+    useInjectedModel = hasModelInput(modelInput);
+
+    if useInjectedModel
+        [model, ~] = modelprep.loadModel(modelInput);
+
+        try
+            tool = InverseKinematicsTool( ...
+                char(setupFile), false);
+        catch exception
+            error("opensimrun:IkNoLoadConstructorFailed", ...
+                ["Could not construct InverseKinematicsTool with " ...
+                 "aLoadModel=false. This overload is required when the " ...
+                 "setup XML omits <model_file>.\n\n%s"], ...
+                exception.message);
+        end
+
+        tool.setModel(model);
+        modelSource = "injected";
+    else
+        modelFile = readSingleTagText(setupFile, "model_file");
+
+        if strlength(modelFile) == 0
+            error("opensimrun:IkModelNotSpecified", ...
+                ["The IK setup does not contain <model_file>, and no " ...
+                 "ModelInput was supplied.\n\nPass ModelInput as the " ...
+                 "Model A .osim file or an initialized OpenSim Model."]);
+        end
+
+        tool = InverseKinematicsTool(char(setupFile));
+        model = [];
+        modelSource = "xml";
+    end
 
     startTime = tic;
     runSucceeded = logical(tool.run());
@@ -80,9 +117,22 @@ function result = runInverseKinematicsSetup(setupFile, varargin)
     result.SetupFile = setupFile;
     result.OutputMotionFile = outputMotionFile;
     result.Tool = tool;
+    result.Model = model;
+    result.ModelSource = modelSource;
     result.RunSucceeded = runSucceeded;
     result.DurationSeconds = durationSeconds;
     result.Motion = motion;
+end
+
+function tf = hasModelInput(modelInput)
+
+    if ischar(modelInput)
+        tf = ~isempty(modelInput);
+    elseif isstring(modelInput)
+        tf = isscalar(modelInput) && strlength(modelInput) > 0;
+    else
+        tf = isa(modelInput, "org.opensim.modeling.Model");
+    end
 end
 
 function value = readSingleTagText(xmlFile, tagName)
