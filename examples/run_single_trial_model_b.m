@@ -357,7 +357,6 @@ end
 disp(extractionQc);
 disp(auditQc);
 
-
 %% SECTION 4 — EXTRACT TRIAL-SPECIFIC MODEL B LOCK VALUES
 
 groups = modelprep.coordinateGroups();
