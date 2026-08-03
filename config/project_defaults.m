@@ -93,7 +93,7 @@ cfg.qc.lockExtraction.requireStable = true;
 cfg.qc.lockExtractionFilter = struct;
 
 % Filtering is not yet enabled in the production pipeline.
-cfg.qc.lockExtractionFilter.enable = false;
+cfg.qc.lockExtractionFilter.enabled = true;
 
 % Coordinates included in cutoff-sensitivity assessment.
 % roll1/roll2 provide comparison channels for the noisy yaw coordinates.
