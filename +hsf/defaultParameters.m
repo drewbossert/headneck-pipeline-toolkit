@@ -17,6 +17,4 @@ function parameters = defaultParameters()
     parameters.InterpolationMethod = "pchip";
     parameters.ForcePrefix = "ground_force_1_v";
     parameters.PointPrefix = "ground_force_1_p";
-    parameters.TorquePrefix = "ground_torque_1_";
-    parameters.IncludeTorque = false;
 end
