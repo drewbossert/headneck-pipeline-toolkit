@@ -1,21 +1,85 @@
-# OpenSim MATLAB I/O Toolkit
+# Head-Neck Pipeline Toolkit
 
-A small MATLAB namespace for parsing and writing OpenSim workflow files.
+MATLAB tools for a reproducible OpenSim head-neck reprocessing workflow. The repository supports OpenSim table and XML I/O, staged model preparation, inverse kinematics, Body Kinematics analysis, and generation of simulated head-support forces for static optimization.
+
+The toolkit is organized as MATLAB packages so that workflow scripts can call focused, testable functions instead of directly editing OpenSim files.
+
+## Workflow
+
+The current single-trial workflow is organized into the following stages:
+
+1. Build an initialization model with all coordinates unlocked and coordinate-coupler constraints enabled.
+2. Run initialization inverse kinematics and review coordinate coverage, marker errors, and cervical motion.
+3. Estimate stable lock values and build a constrained final-IK model.
+4. Run final inverse kinematics and audit the locked and dependent coordinates.
+5. Run Body Kinematics to obtain the skull center-of-mass trajectory.
+6. Generate a 1000 Hz head-support-force motion file and a trial-specific `ExternalLoads` XML file.
+7. Build a static-optimization model with couplers disabled and the required out-of-plane coordinates locked.
+
+Static-optimization model construction is implemented. The final Static Optimization setup runner is still being developed, so this repository should currently be treated as a staged, QC-oriented research workflow rather than a fully unattended batch pipeline.
+
+## Requirements
+
+- MATLAB with support for package folders, string arrays, and `matlab.unittest`.
+- OpenSim 4.5 with its MATLAB/Java bindings configured for functions that load models or execute OpenSim tools.
+- Signal Processing Toolbox for Butterworth filtering, zero-phase filtering, and the optional PSD diagnostics.
+
+The OpenSim-independent table I/O and force-generation helper tests can be run without loading an OpenSim model.
 
 ## Installation
 
-Add the toolkit root to the MATLAB path:
+Clone the repository and add its root directory to the MATLAB path:
 
-```matlab
-addpath("C:\path\to\opensimio_toolkit");
+```bash
+git clone https://github.com/drewbossert/headneck-pipeline-toolkit.git
 ```
 
-Do not add the `+opensimio` directory directly. MATLAB resolves package
-functions through the toolkit root.
+```matlab
+repositoryRoot = "C:\path\to\headneck-pipeline-toolkit";
+addpath(repositoryRoot);
+```
 
-## Public functions
+Add the repository root, not the individual `+opensimio`, `+modelprep`, `+opensimrun`, or `+hsf` directories. MATLAB resolves package functions through the parent directory.
 
-### OpenSim numeric tables
+Confirm that MATLAB can find the toolkit and OpenSim bindings:
+
+```matlab
+which opensimio.readMot
+which modelprep.buildInitializationModel
+import org.opensim.modeling.*
+```
+
+## Configuration
+
+Shared defaults are stored in [`config/project_defaults.m`](config/project_defaults.m). Create a machine-specific configuration before running the trial scripts:
+
+```matlab
+copyfile( ...
+    fullfile(repositoryRoot, "config", "project_local_example.m"), ...
+    fullfile(repositoryRoot, "config", "project_local.m"));
+```
+
+Edit `config/project_local.m` to set the raw-data location, optional output location, OpenSim installation paths, and local runtime settings. This file is ignored by Git.
+
+Load and validate the merged configuration with:
+
+```matlab
+cfg = load_project_config();
+```
+
+For operations that only need the version-controlled defaults, the local-file requirement can be disabled:
+
+```matlab
+cfg = load_project_config("RequireLocalConfig", false);
+```
+
+Generated results are written to `output/` by default. Raw trial inputs, local configuration, and generated outputs are excluded from version control; reusable setup templates remain under `input/templates/`.
+
+## Packages
+
+### `opensimio` — OpenSim files and templates
+
+Read and write `.mot` and `.sto` numeric tables while retaining labels and header metadata:
 
 ```matlab
 motion = opensimio.readMot("coordinates.mot");
@@ -25,193 +89,63 @@ opensimio.writeMot("coordinates_copy.mot", motion);
 opensimio.writeSto("results_copy.sto", storage);
 ```
 
-Both wrappers use the shared functions:
+The returned structure includes the original header, parsed metadata, column labels, numeric data, time, row and column counts, and the `inDegrees` state.
 
-```matlab
-data = opensimio.readOpenSimTable(filePath);
-opensimio.writeOpenSimTable(filePath, data);
-```
-
-The returned structure contains header lines, parsed metadata, labels, numeric
-data, time, and `inDegrees`.
-
-### XML
+XML files can be edited through the MATLAB DOM interface:
 
 ```matlab
 xmlData = opensimio.readXml("setup.xml");
-
 nodes = xmlData.Document.getElementsByTagName("model_file");
 nodes.item(0).setTextContent("trial_model.osim");
-
 opensimio.writeXml("setup_trial.xml", xmlData);
 ```
 
-### Text templates
-
-Template placeholders use the form:
-
-```text
-{{MODEL_FILE}}
-{{MARKER_FILE}}
-{{OUTPUT_FILE}}
-```
-
-Render them with:
+Text templates use `{{PLACEHOLDER}}` tokens. Rendering is strict by default, so unresolved placeholders raise an error:
 
 ```matlab
 template = opensimio.readTemplate("setup_template.xml");
-
 values = struct( ...
     "MODEL_FILE", "trial.osim", ...
-    "MARKER_FILE", "trial.trc", ...
-    "OUTPUT_FILE", "trial_ik.mot");
+    "MARKER_FILE", "trial.trc");
 
 rendered = opensimio.renderTemplate( ...
-    template, values, ...
-    "EscapeXmlValues", true);
+    template, values, "EscapeXmlValues", true);
 
 opensimio.writeText("setup_rendered.xml", rendered);
 ```
 
-`Strict=true` by default, so unresolved placeholders produce an error.
+See [`examples/example_io_usage.m`](examples/example_io_usage.m) for a complete example.
 
-## Tests
+### `modelprep` — staged model construction and QC
 
-From the toolkit root:
+The model-preparation package implements the three model states used by the workflow:
 
-```matlab
-results = runtests("tests");
-table(results)
-```
-
-## Recommended role in the reprocessing pipeline
-
-Keep these functions limited to file I/O. Trial-specific operations such as
-coordinate locking, constraint configuration, IK setup patching, support-force
-generation, and quality control should live in separate workflow packages or
-scripts that call this namespace.
-
-Internal parsing helpers are stored in `+opensimio/+internal` and are not intended as the workflow-facing API.
-
-
-# Model preparation package
-
-The toolkit now also contains `+modelprep`, which manages OpenSim model
-properties for the head-neck reprocessing workflow.
+- Model A: all coordinates unlocked, constraints enabled, for initialization IK.
+- Model B: root and independent out-of-plane coordinates locked, constraints enabled, for final IK.
+- Model C: all required out-of-plane coordinates locked and couplers disabled, for static optimization.
 
 ```matlab
-addpath("C:\path\to\headneck_pipeline_toolkit");
-
 groups = modelprep.coordinateGroups();
 
-initialization = modelprep.buildInitializationModel( ...
+modelprep.buildInitializationModel( ...
     baseModelFile, initializationModelFile);
 
 lockValues = modelprep.extractStableCoordinateValues( ...
     initializationIkMotion, initializationModelFile, ...
-    groups.FinalIkLocked, [0.00, 0.25]);
+    groups.FinalIkLocked, [0.10, 0.35]);
 
-lockedIk = modelprep.buildLockedIkModel( ...
+modelprep.buildLockedIkModel( ...
     baseModelFile, lockValues, lockedIkModelFile);
 
-staticOptimization = modelprep.buildStaticOptimizationModel( ...
-    lockedIkModelFile, finalIkMotionFile, soModelFile);
+modelprep.buildStaticOptimizationModel( ...
+    lockedIkModelFile, finalIkMotionFile, staticOptimizationModelFile);
 ```
 
-Run package tests:
+The package also provides coordinate inspection, validation, locked-coordinate audits, motion summaries, filtering, and cutoff-sensitivity assessment. See [`examples/example_modelprep_usage.m`](examples/example_modelprep_usage.m).
 
-```matlab
-results = run_modelprep_tests();
+### `opensimrun` — OpenSim setup and execution
 
-% Optional OpenSim integration smoke test:
-results = run_modelprep_tests("C:\path\to\base_model.osim");
-```
-
-The smoke test writes only to a temporary directory and does not modify the
-source model.
-
-
-# Body Kinematics and head-support-force packages
-
-## Body Kinematics
-
-`+opensimrun` configures and executes OpenSim's AnalyzeTool with a
-BodyKinematics analysis:
-
-```matlab
-analysis = opensimrun.runBodyKinematics( ...
-    modelFile, ikMotionFile, resultsDirectory, ...
-    "BodyNames", "skull", ...
-    "ToolName", "skull_com", ...
-    "SetupFile", fullfile(resultsDirectory, "analyze.xml"));
-```
-
-The result includes the generated position, velocity, and acceleration files.
-The HSF workflow uses `PositionFile` for the skull center-of-mass trajectory.
-
-## Head-support force
-
-`+hsf` implements the global-coordinate support-force convention:
-
-```text
-Fy = W
-Fr = W*tan(conditionAngle)
-Fx = sign*Fr*cos(gndroll)
-Fz = sign*Fr*sin(gndroll)
-```
-
-where `W = mass*abs(gravityY)`. The azimuth convention and radial sign are
-configurable.
-
-Run one trial end-to-end:
-
-```matlab
-result = hsf.generateTrial( ...
-    modelFile, ikMotionFile, outputDirectory, conditionAngleDeg, ...
-    "SkullMassKg", 1.1704014720812095, ...
-    "GravityY", -9.80665, ...
-    "OffIntervals", [liftOffTime, recontactTime], ...
-    "RampDuration", 0.1);
-```
-
-This retains the BodyKinematics outputs, resamples skull CoM positions to
-1000 Hz, constructs the HSF force and application-point columns, writes the
-`.mot` file, and validates its labels and sample rate.
-
-Pure MATLAB tests:
-
-```matlab
-results = run_hsf_tests();
-```
-
-OpenSim integration smoke test:
-
-```matlab
-result = smoke_test_body_kinematics( ...
-    modelFile, ikMotionFile, outputDirectory);
-```
-
-
-# Single-trial initialization IK
-
-The example script below is intended to be run section-by-section:
-
-```text
-examples/run_single_trial_initialization_ik.m
-```
-
-It performs only the first validation phase:
-
-1. validates toolkit and source files;
-2. creates a trial output structure;
-3. builds Model A with all coordinates unlocked and constraints enabled;
-4. validates and audits Model A;
-5. copies and patches a known-working IK setup template;
-6. runs initialization IK;
-7. audits coordinate coverage and excursions; and
-8. saves a checkpoint for manual visual review.
-
-The associated `+opensimrun` functions are:
+This package prepares trial-specific setup files while preserving the project-specific settings in the version-controlled templates. It can execute inverse kinematics and AnalyzeTool/BodyKinematics through the OpenSim MATLAB bindings.
 
 ```matlab
 setup = opensimrun.prepareInverseKinematicsSetup( ...
@@ -225,3 +159,118 @@ run = opensimrun.runInverseKinematicsSetup( ...
     outputSetupFile, ...
     "ExpectedOutputMotionFile", outputMotionFile);
 ```
+
+Body Kinematics can be run directly:
+
+```matlab
+analysis = opensimrun.runBodyKinematics( ...
+    modelFile, ikMotionFile, resultsDirectory, ...
+    "BodyNames", "skull", ...
+    "ToolName", "skull_com", ...
+    "SetupFile", fullfile(resultsDirectory, "analyze.xml"));
+```
+
+Create a trial-specific external-loads file from the shared template and a generated HSF motion file:
+
+```matlab
+externalLoads = opensimrun.prepareExternalLoadsSetup( ...
+    cfg.externalLoadsTemplate, outputExternalLoadsFile, ...
+    "DataFile", headSupportForceFile);
+```
+
+### `hsf` — simulated head-support forces
+
+The HSF package uses the skull center-of-mass trajectory as the force application point and implements the global-coordinate force convention
+
+```text
+W  = mass * abs(gravityY)
+Fy = W
+Fr = W * tan(conditionAngle)
+Fx = radialSign * Fr * cos(gndroll)
+Fz = radialSign * Fr * sin(gndroll)
+```
+
+The azimuth convention and radial sign are configurable. Force can be turned off over verified lift-off intervals with a configurable ramp at contact transitions.
+
+Generated loads contain the force and application-point triads only: `time`, `ground_force_1_vx/vy/vz`, and `ground_force_1_px/py/pz`. Moment columns are intentionally omitted.
+
+Run a trial end to end from final-IK motion to the HSF `.mot` file:
+
+```matlab
+result = hsf.generateTrial( ...
+    modelFile, ikMotionFile, outputDirectory, conditionAngleDeg, ...
+    "SkullMassKg", 1.1704014720812095, ...
+    "GravityY", -9.80665, ...
+    "TargetRateHz", 1000, ...
+    "OffIntervals", [liftOffTime recontactTime], ...
+    "RampDuration", 0.1);
+```
+
+This retains the Body Kinematics outputs, resamples skull CoM positions, writes the HSF motion file, and validates its labels and sample rate. See [`examples/example_hsf_trial.m`](examples/example_hsf_trial.m).
+
+## Running a single trial
+
+The validation drivers are intended to be run section by section in the MATLAB Editor:
+
+1. [`examples/run_single_trial_initialization_ik.m`](examples/run_single_trial_initialization_ik.m) builds Model A, runs initialization IK, produces QC reports, and saves a checkpoint for manual review.
+2. [`examples/run_single_trial_model_b_filtered.m`](examples/run_single_trial_model_b_filtered.m) resumes from that checkpoint, assesses or applies lock filtering, builds Model B, runs final IK, and audits the result.
+3. [`examples/example_hsf_trial.m`](examples/example_hsf_trial.m) demonstrates skull Body Kinematics and HSF generation from accepted final-IK motion.
+
+Update the trial identity, marker file, time range, support interval, and execution flags at the beginning of each driver before running it. Review each checkpoint before continuing to the next model state.
+
+Additional diagnostic scripts are available for lock-filter sensitivity and initialization-IK power spectral density:
+
+- [`examples/assess_single_trial_lock_filter.m`](examples/assess_single_trial_lock_filter.m)
+- [`examples/assess_initialization_ik_psd.m`](examples/assess_initialization_ik_psd.m)
+
+## Tests
+
+From MATLAB with the repository root on the path:
+
+```matlab
+ioResults = run_opensimio_tests();
+modelprepResults = run_modelprep_tests();
+hsfResults = run_hsf_tests();
+```
+
+If MATLAB test-class discovery is unavailable or unreliable, run the direct HSF checks:
+
+```matlab
+run_hsf_sanity_checks();
+```
+
+The model-preparation runner optionally accepts a real `.osim` model for an OpenSim integration smoke test:
+
+```matlab
+run_modelprep_tests(cfg.kinematicBaseModel);
+```
+
+Body Kinematics has a separate integration smoke test:
+
+```matlab
+smoke_test_body_kinematics( ...
+    modelFile, ikMotionFile, outputDirectory);
+```
+
+Integration tests write generated files to temporary or explicitly supplied output directories and do not modify the source model.
+
+## Repository layout
+
+```text
++opensimio/    OpenSim table, XML, text, and template I/O
++modelprep/    Model construction, coordinate configuration, and QC
++opensimrun/   OpenSim setup preparation and tool execution
++hsf/          Head-support-force mechanics and motion generation
+config/        Shared defaults and local configuration template
+examples/      Sectioned trial drivers and focused usage examples
+input/         Reusable OpenSim setup and simulated-load templates
+models/        Shared OpenSim models and geometry
+tests/         MATLAB unit tests and test fixtures
+output/        Generated results; ignored except for .gitkeep
+```
+
+## Research-use note
+
+This toolkit encodes project-specific model coordinates, force conventions, templates, and QC thresholds. Inspect the generated models, motion files, marker errors, coordinate audits, force intervals, and OpenSim setup files before using results in downstream analysis.
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the development history.
