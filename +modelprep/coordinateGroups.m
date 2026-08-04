@@ -30,11 +30,25 @@ function groups = coordinateGroups()
         "spine_tz"
     ];
 
+    groups.IndependentSagittal = [ ...
+        "pitch2"
+        "pitch1"
+    ];
+
     groups.IndependentOutOfPlane = [ ...
         "roll2"
         "yaw2"
         "roll1"
         "yaw1"
+    ];
+
+    groups.DependentSagittal = [ ...
+        "aux7jnt_r3"
+        "aux6jnt_r3"
+        "aux5jnt_r3"
+        "aux4jnt_r3"
+        "aux3jnt_r3"
+        "aux1jnt_r3"
     ];
 
     groups.DependentOutOfPlane = [ ...
@@ -58,14 +72,13 @@ function groups = coordinateGroups()
     ];
 
     groups.Sagittal = [ ...
-        "pitch2"
-        "aux7jnt_r3"
-        "aux6jnt_r3"
-        "aux5jnt_r3"
-        "aux4jnt_r3"
-        "aux3jnt_r3"
-        "pitch1"
-        "aux1jnt_r3"
+        groups.IndependentSagittal
+        groups.DependentSagittal
+    ];
+
+    groups.AllDependent = [ ...
+        groups.DependentSagittal
+        groups.DependentOutOfPlane
     ];
 
     groups.FinalIkLocked = [ ...
