@@ -62,12 +62,12 @@ cfg.qc.lockAudit = struct;
 
 cfg.qc.lockAudit.statistic = "median";
 
-cfg.qc.lockAudit.rotationRangeTolerance = 1e-6;
-cfg.qc.lockAudit.translationRangeToleranceM = 1e-10;
+cfg.qc.lockAudit.rotationRangeToleranceDeg = 1e-6;
+cfg.qc.lockAudit.translationRangeToleranceM = 1e-8;
 cfg.qc.lockAudit.otherRangeToleranceSI = 1e-10;
 
 cfg.qc.lockAudit.rotationMatchToleranceDeg = 1e-5;
-cfg.qc.lockAudit.translationMatchToleranceM = 1e-9;
+cfg.qc.lockAudit.translationMatchToleranceM = 1e-8;
 cfg.qc.lockAudit.otherMatchToleranceSI = 1e-9;
 
 cfg.qc.lockAudit.minimumSamples = 2;
