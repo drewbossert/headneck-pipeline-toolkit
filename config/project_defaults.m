@@ -160,3 +160,15 @@ cfg.qc.hsfEventDetection.minimumBelowDurationSec = 0.10;
 cfg.qc.hsfEventDetection.smoothingWindowSec = 0.05;
 
 cfg.qc.hsfEventDetection.searchWindow = [];
+
+%% Force capacity configuration
+
+cfg.forceCapacity = struct;
+
+cfg.forceCapacity.enabled = false;
+
+cfg.forceCapacity.configFile = "";
+
+cfg.forceCapacity.applyMode = "target";
+
+cfg.forceCapacity.requireAllEntries = true;
