@@ -245,9 +245,9 @@ function app = interactiveForceCapacityEditor(modelFile)
     %% Callbacks
 
     function scopeChanged(~,~)
-        % Commit any visible edits, then rebuild the filtered table.
+        % Scope controls visibility only. It must never modify selection.
         syncVisibleToMaster();
-        refreshScopeView(true);
+        refreshScopeView();
     end
 
 
@@ -255,18 +255,16 @@ function app = interactiveForceCapacityEditor(modelFile)
 
         syncVisibleToMaster();
 
+        % This is the ONLY scope-level control that intentionally changes
+        % selection. Make the visible scope the complete active selection.
         masterData.Select(:) = false;
         masterData.Select(visibleRowIndices) = true;
 
-        refreshScopeView(false);
+        refreshScopeView();
     end
 
 
-    function refreshScopeView(autoSelect)
-
-        if nargin < 1
-            autoSelect = false;
-        end
+    function refreshScopeView()
 
         scope = string(scopeDropdown.Value);
 
@@ -279,11 +277,6 @@ function app = interactiveForceCapacityEditor(modelFile)
         % Manual selection intentionally exposes the complete ForceSet.
         if scope == "Manual selection"
             visibleRowIndices = (1:height(masterData)).';
-        elseif autoSelect
-            % Preserve historical behavior: choosing a functional scope
-            % also makes that scope the active selection target.
-            masterData.Select(:) = false;
-            masterData.Select(visibleRowIndices) = true;
         end
 
         tableHandle.Data = ...
@@ -314,14 +307,9 @@ function app = interactiveForceCapacityEditor(modelFile)
 
         syncVisibleToMaster();
 
-        scope = string(scopeDropdown.Value);
-
-        if scope ~= "Manual selection"
-            masterData.Select(:) = false;
-            masterData.Select(visibleRowIndices) = true;
-        end
-
-        selected = logical(masterData.Select);
+        selected = false(height(masterData),1);
+        selected(visibleRowIndices) = ...
+            logical(masterData.Select(visibleRowIndices));
 
         scalableSelected = ...
             selected & ...
@@ -336,8 +324,7 @@ function app = interactiveForceCapacityEditor(modelFile)
 
         if ~any(scalableSelected)
             uialert(fig, ...
-                ["The selected objects do not expose a supported " ...
-                 "single scalar force-capacity parameter."], ...
+                "The selected objects do not expose a supported single scalar force-capacity parameter.", ...
                 "No scalable objects");
             return;
         end
@@ -367,9 +354,7 @@ function app = interactiveForceCapacityEditor(modelFile)
 
                 if numel(selectedUnits) > 1
                     uialert(fig, ...
-                        ["Absolute assignment is blocked when the " ...
-                         "selection contains different physical units. " ...
-                         "Select a homogeneous class/group instead."], ...
+                        "Absolute assignment is blocked when the selection contains different physical units. Select a homogeneous class/group instead.", ...
                         "Mixed units");
                     return;
                 end
@@ -384,7 +369,7 @@ function app = interactiveForceCapacityEditor(modelFile)
                 masterData.ProposedValue(scalableSelected) = value;
         end
 
-        refreshScopeView(false);
+        refreshScopeView();
     end
 
 
@@ -392,14 +377,9 @@ function app = interactiveForceCapacityEditor(modelFile)
 
         syncVisibleToMaster();
 
-        scope = string(scopeDropdown.Value);
-
-        if scope ~= "Manual selection"
-            masterData.Select(:) = false;
-            masterData.Select(visibleRowIndices) = true;
-        end
-
-        selected = logical(masterData.Select);
+        selected = false(height(masterData),1);
+        selected(visibleRowIndices) = ...
+            logical(masterData.Select(visibleRowIndices));
 
         if ~any(selected)
             uialert(fig, ...
@@ -412,7 +392,7 @@ function app = interactiveForceCapacityEditor(modelFile)
             logical(newState);
 
         % Enabled/disabled scopes can change membership after the edit.
-        refreshScopeView(false);
+        refreshScopeView();
     end
 
 
@@ -424,7 +404,7 @@ function app = interactiveForceCapacityEditor(modelFile)
         masterData.ProposedAppliesForce = ...
             masterData.AppliesForce;
 
-        refreshScopeView(false);
+        refreshScopeView();
     end
 
 
@@ -451,9 +431,7 @@ function app = interactiveForceCapacityEditor(modelFile)
                     masterData.CurrentValue(masterRow);
 
                 uialert(fig, ...
-                    ["This object has no supported single scalar " ...
-                     "force-capacity parameter. Its appliesForce state " ...
-                     "can still be changed."], ...
+                    "This object has no supported single scalar force-capacity parameter. Its appliesForce state can still be changed.", ...
                     "Capacity not editable");
                 return;
             end
@@ -505,8 +483,7 @@ function app = interactiveForceCapacityEditor(modelFile)
         if ~any(changed)
 
             uialert(fig, ...
-                ["No capacity values or appliesForce states have changed. " ...
-                 "Preview a change before saving a configuration."], ...
+                "No capacity values or appliesForce states have changed. Preview a change before saving a configuration.", ...
                 "Nothing to save");
             return;
         end
@@ -550,10 +527,7 @@ function app = interactiveForceCapacityEditor(modelFile)
 
         uialert(fig, ...
             sprintf( ...
-                ["Saved %d reusable ForceSet configuration entries.\n\n" ...
-                 "Config:\n%s\n\n" ...
-                 "The file stores both exact target values and " ...
-                 "relative scale factors."], ...
+                "Saved %d reusable ForceSet configuration entries.\n\nConfig:\n%s\n\nThe file stores both exact target values and relative scale factors.", ...
                 configResult.EntryCount, ...
                 configFile), ...
             "Configuration saved");
@@ -634,7 +608,7 @@ function app = interactiveForceCapacityEditor(modelFile)
                     modelFile, ...
                     outputModelFile, ...
                     changes, ...
-                    "Overwrite", false, ...
+                    "Overwrite", true, ...
                     "AuditFile", auditFile);
 
         catch ME
@@ -647,8 +621,7 @@ function app = interactiveForceCapacityEditor(modelFile)
 
         uialert(fig, ...
             sprintf( ...
-                ["Saved %d verified changes.\n\n" ...
-                 "Model:\n%s\n\nAudit:\n%s"], ...
+                "Saved %d verified changes.\n\nModel:\n%s\n\nAudit:\n%s", ...
                 height(result.Audit), ...
                 outputModelFile, ...
                 auditFile), ...
@@ -669,7 +642,8 @@ function app = interactiveForceCapacityEditor(modelFile)
     end
 
     % Apply initial dropdown filter after all controls/callbacks exist.
-    refreshScopeView(true);
+    % Filtering never implies selection.
+    refreshScopeView();
 end
 
 
@@ -688,8 +662,7 @@ function textValue = localStatusText(data, visibleCount)
         data.AppliesForce;
 
     textValue = sprintf( ...
-        ["%d visible / %d total | %d selected | " ...
-         "%d capacity changes | %d enable-state changes"], ...
+        "%d visible / %d total | %d selected total | %d capacity changes | %d enable-state changes", ...
         visibleCount, ...
         height(data), ...
         selectedCount, ...
