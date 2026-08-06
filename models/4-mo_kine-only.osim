@@ -8941,7 +8941,7 @@
 					<members> cleid_mast cleid_occ stern_mast cleid_mast_L cleid_occ_L stern_mast_L</members>
 				</ObjectGroup>
 				<ObjectGroup name="flexion">
-					<members> cleid_mast cleid_occ long_cap_sklc4 long_col_c1c5 long_col_c1thx long_col_c5thx scalenus_ant stern_mast cleid_mast_L cleid_occ_L long_cap_sklc4_L long_col_c1c5_L long_col_c1thx_L long_col_c5thx_L scalenus_ant_L stern_mast_L</members>
+					<members> cleid_mast cleid_occ long_cap_sklc4 long_col_c1c5 long_col_c1thx long_col_c5thx scalenus_ant stern_mast </members>
 				</ObjectGroup>
 				<ObjectGroup name="rotation_contra">
 					<members> cleid_mast cleid_occ long_cap_sklc4 long_col_c1c5 obl_cap_sup semi_cap_sklc5 semi_cap_sklthx semi_cerv_c3thx stern_mast trap_acr trap_cl</members>
