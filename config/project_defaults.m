@@ -169,6 +169,7 @@ cfg.forceCapacity.enabled = false;
 
 cfg.forceCapacity.configFile = "";
 
+% Options: "target" (default), "scale". "target" uses the raw force value from the config. "scale" uses the scaling factor derived from the raw value. BEWARE: "scale" is not idempotent. If you run a pipeline with "scale" and then run it again, the scaling factor will be applied again, which may not be what you want. "target" is idempotent.
 cfg.forceCapacity.applyMode = "target";
 
 cfg.forceCapacity.requireAllEntries = true;
