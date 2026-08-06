@@ -66,10 +66,7 @@ function cfg = load_project_config(varargin)
         run(localFile);
     elseif parser.Results.RequireLocalConfig
         error("ProjectConfig:LocalConfigMissing", ...
-            ["Machine-specific configuration was not found:\n%s\n\n" ...
-             "Copy:\n%s\n\n" ...
-             "to:\n%s\n\n" ...
-             "and edit the local paths."], ...
+            "Machine-specific configuration was not found:\n%s\n\nCopy:\n%s\n\nto:\n%s\n\nand edit the local paths.", ...
             localFile, exampleFile, localFile);
     end
 
@@ -84,7 +81,7 @@ function cfg = load_project_config(varargin)
     cfg = setDefault(cfg, "openSimRoot", "");
     cfg = setDefault(cfg, "openSimJavaJar", "");
     cfg = setDefault(cfg, "openSimBinDirectory", "");
-    cfg = setDefault(cfg, "overwriteExisting", false);
+    % cfg = setDefault(cfg, "overwriteExisting", false);
     cfg = setDefault(cfg, "enableParallel", false);
     cfg = setDefault(cfg, "maxWorkers", 1);
 
