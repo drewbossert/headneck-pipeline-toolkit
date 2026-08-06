@@ -6,6 +6,8 @@ output/**
 !output/.gitkeep
 
 # Trial-specific or generated model files
+models/**.csv
+models/**_force_adjusted.osim
 models/generated/**
 models/trial_specific/**
 models/locked/**
