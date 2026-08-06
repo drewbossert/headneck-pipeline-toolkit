@@ -138,3 +138,25 @@ cfg.qc.lockExtractionFilter.plotWindow = [0.00, 1.00];
 % Second-order Butterworth applied with filtfilt gives an
 % effective fourth-order zero-phase magnitude response.
 cfg.qc.lockExtractionFilter.selectedCutoffHz = 1.0;
+
+%% HSF contact event detection
+
+cfg.qc.hsfEventDetection = struct;
+
+% Initial support window used to define the baseline for contact-event detection.
+cfg.qc.hsfEventDetection.baselineWindow = [];
+
+% Threshold above which lift-off is considered. Lift-off threshold is strictly greater than the recontact threshold.
+cfg.qc.hsfEventDetection.liftOffThresholdM = 0.00150;
+% Threshold above which recontact is considered. Recontact threshold is strictly less than the lift-off threshold.
+cfg.qc.hsfEventDetection.recontactThresholdM = 0.00149;
+
+% Minimum duration of a contact event to be considered valid. Shorter events are ignored.
+cfg.qc.hsfEventDetection.minimumAboveDurationSec = 0.10;
+% Minimum duration of a non-contact event to be considered valid. Shorter events are ignored.
+cfg.qc.hsfEventDetection.minimumBelowDurationSec = 0.10;
+
+% Size of smoothing window applied to the HSF signal before event detection. A moving average is used.
+cfg.qc.hsfEventDetection.smoothingWindowSec = 0.05;
+
+cfg.qc.hsfEventDetection.searchWindow = [];
