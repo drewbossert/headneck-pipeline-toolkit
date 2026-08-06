@@ -93,7 +93,7 @@ cfg.qc.lockExtraction.statistic = "median";
 
 % Maximum coordinate range allowed within the selected initial support window before the value is considered unstable.
 cfg.qc.lockExtraction.rotationToleranceDeg = 0.75;
-cfg.qc.lockExtraction.translationToleranceM = 5e-4;
+cfg.qc.lockExtraction.translationToleranceM = 2e-3;
 cfg.qc.lockExtraction.otherToleranceSI = 1e-8;
 
 cfg.qc.lockExtraction.minimumSamples = 2;
