@@ -6,6 +6,7 @@ output/**
 !output/.gitkeep
 
 # Trial-specific or generated model files
+models/**.json
 models/**.csv
 models/**_force_adjusted.osim
 models/generated/**
