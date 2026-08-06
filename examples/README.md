@@ -2,7 +2,7 @@
 
 This folder contains example scripts for the headneck pipeline toolkit. Run the provided example scripts in the following order, section-by-section, and verify outputs at each step.
 
-## Recommended execution order
+## Required execution order
 
 1. `run_single_trial_initialization.m`
 2. `run_single_trial_model_b_filtered.m`
