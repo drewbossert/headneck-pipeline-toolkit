@@ -33,6 +33,9 @@ config/local_paths.m
 **/local_config.m
 **/local_paths.m
 
+# Programmatically defined configuration files
+config/**
+
 # ============================================================
 # MATLAB-generated files
 # ============================================================
