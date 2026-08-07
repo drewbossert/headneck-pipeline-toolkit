@@ -53,7 +53,7 @@ projectCfg = load_project_config();
 
 trialCfg = struct;
 
-trialCfg.conditionDeg = 0;
+trialCfg.conditionDeg = 45;
 trialCfg.trialNumber = 1;
 
 trialCfg.overwriteExisting = ...

@@ -45,7 +45,7 @@ projectCfg = ...
 
 trialCfg = struct;
 
-trialCfg.conditionDeg = 45;
+trialCfg.conditionDeg = 30;
 trialCfg.trialNumber = 1;
 
 % Set true only if you deliberately want to replace the current SO
