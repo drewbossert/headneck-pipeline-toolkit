@@ -45,10 +45,33 @@ addpath(projectRoot);
 
 projectCfg = load_project_config();
 
-%% TODO define any necessary script-specific config params
+%% Canonical batch configuration aliases
+
 processCfg = struct;
+
+processCfg.conditions = ...
+    projectCfg.conditions(:).';
+
+processCfg.trials = ...
+    projectCfg.trials(:).';
+
 processCfg.overwriteExisting = ...
     projectCfg.overwriteExisting;
+
+processCfg.enableParallel = ...
+    projectCfg.batchProcessing.enableParallel;
+
+processCfg.maxWorkers = ...
+    projectCfg.batchProcessing.maxWorkers;
+
+nConds = numel(processCfg.conditions);
+nTrials = numel(processCfg.trials);
+
+assert(nConds > 0 && nTrials > 0, ...
+    "BatchProcessing:EmptyStudyDesign", ...
+    "At least one condition and one trial must be configured.");
+
+%% TODO define any necessary script-specific config params
 
 processCfg.baseModelFile = fullfile( ...
     projectCfg.modelsDirectory, ...
@@ -110,7 +133,7 @@ end
 % parallel process respective of that run
 
 %% TODO define parallel pool workers
-nWorkers = projectCfg.batchProcessing.maxWorkers;
+nWorkers = processCfg.maxWorkers;
 
 % pool = gcp("nocreate");
 % 
@@ -122,15 +145,12 @@ nWorkers = projectCfg.batchProcessing.maxWorkers;
 % end
 
 %% TODO run parfor IK
-nConds = numel(projectCfg.conditions);
-nTrials = numel(projectCfg.trials);
-
 fprintf("Running initialization IK for %d conditions " + ...
     "and %d trials.\n\n", ...
     nConds, nTrials); % TODO workshop this fprintf... (very yikes)
 
-parfor i = 1:numel(nConds)
-    for j = 1:numel(nTrials)
+parfor i = 1:nConds
+    for j = 1:nTrials
         % Perform IK process on this trial for parallel condition. 
         % Reuse script logic from run_single_trial_initialization_ik.m
         % minus qc tables and qc outputs (these have already been verified).
