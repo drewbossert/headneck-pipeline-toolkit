@@ -1,14 +1,14 @@
 # Examples Folder
 
-This folder contains example scripts for the headneck pipeline toolkit. Run the provided example scripts in the following order, section-by-section, and verify outputs at each step.
+This folder contains example scripts for the headneck pipeline toolkit. Run the provided example scripts in the following order, section-by-section, and verify outputs at each step. Note that the last script lives in the root folder. This script will scrape the outputs of your analysis to detect static optimization force results and produce quality control plots and perform statistical analysis if requested.
 
 ## Required execution order
 
-1. `run_single_trial_initialization.m`
-2. `run_single_trial_model_b_filtered.m`
-3. `run_single_trial_static_optimization_prep.m`
-4. `run_single_trial_static_optimization_test.m`
-5. `run_static_optimization_plotting_pipeline.m`
+1. `../examples/run_single_trial_initialization.m`
+2. `../examples/run_single_trial_model_b_filtered.m`
+3. `../examples/run_single_trial_static_optimization_prep.m`
+4. `../examples/run_single_trial_static_optimization_test.m`
+5. `../run_static_optimization_analysis.m`
 
 ## Instructions
 
