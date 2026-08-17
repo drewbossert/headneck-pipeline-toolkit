@@ -60,8 +60,8 @@ projectCfg = load_project_config();
 
 plotCfg = struct;
 
-plotCfg.conditionsDeg = [0 15 30 45];
-plotCfg.trials = 1:5;
+plotCfg.conditionsDeg = 45;
+plotCfg.trials = 1;
 
 % Optional exclusions as [condition_deg trial_num].
 plotCfg.excludedTrials = zeros(0,2);
