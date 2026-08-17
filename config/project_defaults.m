@@ -181,6 +181,16 @@ cfg.pipeline.staticOptimizationPrep.bodyKinematicsLowpassCutoffHz = -1;
 % Empty means use the complete validated final-IK time range.
 cfg.pipeline.staticOptimizationPrep.timeRangeSec = [];
 
+cfg.pipeline.staticOptimization = struct;
+
+% Require the two canonical Static Optimization result files.
+cfg.pipeline.staticOptimization.requireForceOutput = true;
+cfg.pipeline.staticOptimization.requireActivationOutput = true;
+
+% Endpoint/path time-range validation tolerance used by the SO runner.
+% The runner separately accounts for output decimation from step_interval.
+cfg.pipeline.staticOptimization.timeToleranceSec = 1e-6;
+
 %% Locked-coordinate audit criteria
 
 cfg.qc = struct;
