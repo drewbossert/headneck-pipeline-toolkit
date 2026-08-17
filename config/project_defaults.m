@@ -111,6 +111,15 @@ cfg.modelValidation.expectedConstraintCount = 18;
 cfg.pipeline = struct;
 
 % ---------------------------------------------------------------------
+% Input parser parameters
+% ---------------------------------------------------------------------
+
+cfg.pipeline.trialInput = struct;
+
+cfg.pipeline.trialInput.markerFilePattern = ...
+    "%dDEG%04d.trc";
+    
+% ---------------------------------------------------------------------
 % Process 1 / Model A / initialization IK
 % ---------------------------------------------------------------------
 
