@@ -1,29 +1,14 @@
-%%                         batch_run_process_1.m                         %%
-% ======================================================================= %
-% Run model A IK and validate outputs in batch process                    %
-%                                                                         %
-% This script will initialize and run OpenSim Inverse Kinematics per      %
-% condition and trial in parallel with n workers as defined by config     %
-% param: cfg.batchProcessing.maxWorkers. Initial IK runs will prepare the %
-% model file for locked coordinates IK downstream by determining the      %
-% initial pose state of the model at t=0.                                 %
-%                                                                         %
-% REQUIRED TOOLKIT PACKAGES                                               %
-%   +opensimio                                                            %
-%   +modelprep                                                            %
-%   +opensimrun                                                           %
-%                                                                         %
-% REQUIRED INPUTS                                                         %
-%   1) Clean scaled 4-month-old base model                                %
-%   2) Trial marker .trc file                                             %
-%   3) A known-working IK setup XML template with the correct IK task set %
-%                                                                         %
-% The template must contain exactly one each of:                          %
-%   <model_file>                                                          %
-%   <marker_file>                                                         %
-%   <time_range>                                                          %
-%   <output_motion_file>                                                  %
-% ======================================================================= %
+%% batch_run_process_1.m
+% Batch Process 1:
+%   Model A + initialization inverse kinematics.
+%
+% Every trial is resolved through pipeline.resolveTrialContext() and run
+% through pipeline.runInitializationIkTrial(). The batch script contains no
+% independent Model-A/IK implementation.
+%
+% Output:
+%   <outputRoot>/batch_qc/process_1_initialization_ik_summary.csv
+%   <outputRoot>/batch_qc/process_1_initialization_ik_summary.mat
 
 %% SECTION 0 — PROJECT CONFIGURATION
 
@@ -31,21 +16,8 @@ clear;
 clc;
 dbstop if error
 
-activeFile = string( ...
-    matlab.desktop.editor.getActiveFilename);
-
-assert(strlength(activeFile) > 0 && isfile(activeFile), ...
-    "BatchProcessing:ActiveScriptUnknown", ...
-    "Open and save this script in the MATLAB Editor before running.");
-
-batchDirectory = string(fileparts(activeFile));
-projectRoot = string(fileparts(batchDirectory));
-
-addpath(projectRoot);
-
-projectCfg = load_project_config();
-
-%% Canonical batch configuration aliases
+projectCfg = ...
+    load_project_config();
 
 processCfg = struct;
 
@@ -55,7 +27,7 @@ processCfg.conditions = ...
 processCfg.trials = ...
     projectCfg.trials(:).';
 
-processCfg.overwriteExisting = ...
+processCfg.overwrite = ...
     projectCfg.overwriteExisting;
 
 processCfg.enableParallel = ...
@@ -64,111 +36,352 @@ processCfg.enableParallel = ...
 processCfg.maxWorkers = ...
     projectCfg.batchProcessing.maxWorkers;
 
-nConds = numel(processCfg.conditions);
-nTrials = numel(processCfg.trials);
+processCfg.continueOnError = ...
+    projectCfg.batchProcessing.continueOnError;
 
-assert(nConds > 0 && nTrials > 0, ...
-    "BatchProcessing:EmptyStudyDesign", ...
-    "At least one condition and one trial must be configured.");
+processCfg.poolProfile = ...
+    projectCfg.batchProcessing.poolProfile;
 
-%% TODO define any necessary script-specific config params
+processCfg.closePoolWhenFinished = ...
+    projectCfg.batchProcessing.closePoolWhenFinished;
 
-processCfg.baseModelFile = fullfile( ...
-    projectCfg.modelsDirectory, ...
-    "4-mo_kine-only.osim");
+% Process 1 always executes IK in batch mode.
+processCfg.executeIk = true;
 
-processCfg.markerDirectory = fullfile( ...
-    projectCfg.inputDirectory, ...
-    "trial_data");
+%% SECTION 1 — BUILD JOB MATRIX
 
-processCfg.ikTemplateFile = fullfile( ...
-    projectCfg.inputDirectory, ...
-    "templates", ...
-    "ik_setup_template.xml");
+[conditionGrid, trialGrid] = ndgrid( ...
+    processCfg.conditions, ...
+    processCfg.trials);
 
-processCfg.executeIK = true;
+jobConditions = ...
+    conditionGrid(:);
 
-processCfg.initialTime = 0.00;
-processCfg.finalTime   = 19.99;
+jobTrials = ...
+    trialGrid(:);
 
-processCfg.expectedCoordinateCount = 30;
-processCfg.expectedConstraintCount = 18;
+nJobs = ...
+    numel(jobConditions);
 
-% Coordinates highlighted in the first-pass audit.
-processCfg.reviewCoordinates = [ ...
-    "pitch2"
-    "roll2"
-    "yaw2"
-    "aux7jnt_r3"
-    "aux7jnt_r1"
-    "aux7jnt_r2"
-    "aux6jnt_r3"
-    "aux6jnt_r1"
-    "aux6jnt_r2"
-    "aux5jnt_r3"
-    "aux5jnt_r1"
-    "aux5jnt_r2"
-    "aux4jnt_r3"
-    "aux4jnt_r1"
-    "aux4jnt_r2"
-    "aux3jnt_r3"
-    "aux3jnt_r1"
-    "aux3jnt_r2"
-    "pitch1"
-    "roll1"
-    "yaw1"
-    "aux1jnt_r3"
-    "aux1jnt_r1"
-    "aux1jnt_r2"
-    ];
+assert(nJobs > 0, ...
+    "BatchProcess1:NoJobs", ...
+    "No Process-1 jobs were configured.");
 
-%% TODO define output paths
-analysisDirectory = string(fullfile( ...
-    projectCfg.outputRoot));
+fprintf( ...
+    ["Running Process 1 for %d jobs " ...
+     "(%d conditions x %d trials).\n"], ...
+    nJobs, ...
+    numel(processCfg.conditions), ...
+    numel(processCfg.trials));
 
-if ~isfolder(analysisDirectory)
-    mkdir(analysisDirectory);
+%% SECTION 2 — PRE-FLIGHT RESOLUTION
+
+% Resolve all contexts once before starting OpenSim work. This catches
+% naming/configuration problems before any job mutates the output tree.
+
+for jobIndex = 1:nJobs
+
+    pipeline.resolveTrialContext( ...
+        projectCfg, ...
+        jobConditions(jobIndex), ...
+        jobTrials(jobIndex));
 end
-% Exact output paths (i.e. condition\trial\results) will be created in the
-% parallel process respective of that run
 
-%% TODO define parallel pool workers
-nWorkers = processCfg.maxWorkers;
+fprintf( ...
+    "Trial-context pre-flight passed for all %d jobs.\n", ...
+    nJobs);
 
-% pool = gcp("nocreate");
-% 
-% if isempty(pool)
-%     parpool("local", nWorkers);
-% elseif pool.NumWorkers ~= nWorkers
-%     delete(pool);
-%     parpool("local", nWorkers);
-% end
+%% SECTION 3 — CONFIGURE PARALLEL POOL
 
-%% TODO run parfor IK
-fprintf("Running initialization IK for %d conditions " + ...
-    "and %d trials.\n\n", ...
-    nConds, nTrials); % TODO workshop this fprintf... (very yikes)
+pool = [];
 
-parfor i = 1:nConds
-    for j = 1:nTrials
-        % Perform IK process on this trial for parallel condition. 
-        % Reuse script logic from run_single_trial_initialization_ik.m
-        % minus qc tables and qc outputs (these have already been verified).
-        % Structure output locations here via naming sequence defined by
-        % projectCfg.conditions and projectCfg.trials
-        % Store performance metrics (tic toc) 
-        % and summary tables here to print later
+if processCfg.enableParallel
+
+    pool = ...
+        gcp("nocreate");
+
+    if isempty(pool)
+
+        pool = parpool( ...
+            char(processCfg.poolProfile), ...
+            processCfg.maxWorkers);
+
+    elseif pool.NumWorkers ~= ...
+            processCfg.maxWorkers
+
+        delete(pool);
+
+        pool = parpool( ...
+            char(processCfg.poolProfile), ...
+            processCfg.maxWorkers);
+    end
+
+    fprintf( ...
+        "Parallel execution enabled with %d workers.\n", ...
+        pool.NumWorkers);
+
+else
+
+    fprintf( ...
+        "Parallel execution disabled; running serially.\n");
+end
+
+%% SECTION 4 — RUN JOBS
+
+jobResults = ...
+    cell(nJobs,1);
+
+batchStart = tic;
+
+if processCfg.enableParallel
+
+    parfor jobIndex = 1:nJobs
+
+        jobResults{jobIndex} = ...
+            localRunProcess1Job( ...
+                projectCfg, ...
+                jobConditions(jobIndex), ...
+                jobTrials(jobIndex), ...
+                processCfg);
+    end
+
+else
+
+    for jobIndex = 1:nJobs
+
+        jobResults{jobIndex} = ...
+            localRunProcess1Job( ...
+                projectCfg, ...
+                jobConditions(jobIndex), ...
+                jobTrials(jobIndex), ...
+                processCfg);
+
+        fprintf( ...
+            "[%d/%d] %s: %s\n", ...
+            jobIndex, ...
+            nJobs, ...
+            jobResults{jobIndex}.TrialStem, ...
+            jobResults{jobIndex}.Status);
     end
 end
 
-% TODO include fprintf messages for progress reporting. 
-% NOTE: fprintf, sprintf, and any other string input types 
-% spanning multiple lines of code MUST be formatted like 
-% "first line of code" + ...
-% "second line of code"; 
-% Formatting strings as vectors DOES NOT pass the
-% correct string type as an argument handle, i.e. 
-% ["first line ", ...
-% "second line]; 
-% The former is the only way to properly join strings within
-% arguments in R2026a.
+batchDurationSeconds = ...
+    toc(batchStart);
+
+%% SECTION 5 — COLLATE SUMMARY
+
+summaryTable = ...
+    struct2table( ...
+        vertcat(jobResults{:}));
+
+summaryTable = ...
+    sortrows( ...
+        summaryTable, ...
+        {'ConditionDeg','TrialNumber'});
+
+nSucceeded = ...
+    nnz(summaryTable.Succeeded);
+
+nFailed = ...
+    height(summaryTable) - ...
+    nSucceeded;
+
+fprintf( ...
+    "\nProcess 1 complete in %.3f s.\n", ...
+    batchDurationSeconds);
+
+fprintf( ...
+    "Succeeded: %d\nFailed: %d\n", ...
+    nSucceeded, ...
+    nFailed);
+
+disp(summaryTable(:, [
+    "ConditionDeg"
+    "TrialNumber"
+    "Status"
+    "DurationSeconds"
+]));
+
+%% SECTION 6 — WRITE BATCH SUMMARY
+
+batchQcDirectory = string(fullfile( ...
+    projectCfg.outputRoot, ...
+    "batch_qc"));
+
+if ~isfolder(batchQcDirectory)
+    mkdir(batchQcDirectory);
+end
+
+summaryCsv = string(fullfile( ...
+    batchQcDirectory, ...
+    "process_1_initialization_ik_summary.csv"));
+
+summaryMat = string(fullfile( ...
+    batchQcDirectory, ...
+    "process_1_initialization_ik_summary.mat"));
+
+existingSummaryFiles = [
+    summaryCsv
+    summaryMat
+];
+
+existingSummaryFiles = ...
+    existingSummaryFiles( ...
+        isfile(existingSummaryFiles));
+
+if ~processCfg.overwrite && ...
+        ~isempty(existingSummaryFiles)
+
+    error( ...
+        "BatchProcess1:SummaryExists", ...
+        "Batch summary output already exists:\n%s", ...
+        strjoin(existingSummaryFiles, newline));
+end
+
+writetable( ...
+    summaryTable, ...
+    summaryCsv);
+
+batchSummary = struct;
+
+batchSummary.SchemaVersion = 1;
+batchSummary.Process = 1;
+batchSummary.Stage = "initialization_ik";
+batchSummary.CompletedAt = string(datetime("now"));
+batchSummary.DurationSeconds = batchDurationSeconds;
+batchSummary.Configuration = processCfg;
+batchSummary.SummaryTable = summaryTable;
+batchSummary.Succeeded = nFailed == 0;
+
+save( ...
+    summaryMat, ...
+    "batchSummary");
+
+fprintf( ...
+    "Batch summary CSV:\n%s\n", ...
+    summaryCsv);
+
+fprintf( ...
+    "Batch summary MAT:\n%s\n", ...
+    summaryMat);
+
+%% SECTION 7 — CLEAN UP / FAILURE POLICY
+
+if processCfg.enableParallel && ...
+        processCfg.closePoolWhenFinished
+
+    pool = ...
+        gcp("nocreate");
+
+    if ~isempty(pool)
+        delete(pool);
+    end
+end
+
+if nFailed > 0 && ...
+        ~processCfg.continueOnError
+
+    error( ...
+        "BatchProcess1:JobFailures", ...
+        ["%d Process-1 jobs failed. " ...
+         "See the batch summary for details."], ...
+        nFailed);
+end
+
+
+function job = localRunProcess1Job( ...
+        projectCfg, conditionDeg, trialNumber, processCfg)
+
+    jobStart = tic;
+
+    trial = ...
+        pipeline.resolveTrialContext( ...
+            projectCfg, ...
+            conditionDeg, ...
+            trialNumber);
+
+    job = struct;
+
+    job.ConditionDeg = ...
+        conditionDeg;
+
+    job.TrialNumber = ...
+        trialNumber;
+
+    job.TrialStem = ...
+        trial.TrialStem;
+
+    job.Status = ...
+        "not_started";
+
+    job.Succeeded = ...
+        false;
+
+    job.DurationSeconds = ...
+        NaN;
+
+    job.IkDurationSeconds = ...
+        NaN;
+
+    job.ModelAFile = ...
+        trial.Paths.Initialization.ModelAFile;
+
+    job.IkMotionFile = ...
+        trial.Paths.Initialization.IkMotionFile;
+
+    job.CheckpointFile = ...
+        trial.Paths.Initialization.CheckpointFile;
+
+    job.ErrorIdentifier = ...
+        "";
+
+    job.ErrorMessage = ...
+        "";
+
+    try
+
+        result = ...
+            pipeline.runInitializationIkTrial( ...
+                projectCfg, ...
+                trial, ...
+                "ExecuteIk", ...
+                    processCfg.executeIk, ...
+                "Overwrite", ...
+                    processCfg.overwrite, ...
+                "WriteQc", ...
+                    true, ...
+                "SaveCheckpoint", ...
+                    true, ...
+                "PrintProgress", ...
+                    false);
+
+        job.Status = ...
+            "completed";
+
+        job.Succeeded = ...
+            result.Completed;
+
+        if isstruct(result.IkRunResult) && ...
+                isfield( ...
+                    result.IkRunResult, ...
+                    "DurationSeconds")
+
+            job.IkDurationSeconds = ...
+                result.IkRunResult.DurationSeconds;
+        end
+
+    catch exception
+
+        job.Status = ...
+            "failed";
+
+        job.ErrorIdentifier = ...
+            string(exception.identifier);
+
+        job.ErrorMessage = ...
+            string(exception.message);
+    end
+
+    job.DurationSeconds = ...
+        toc(jobStart);
+end
