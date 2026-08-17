@@ -1,7 +1,7 @@
 %% run_single_trial_static_optimization_prep.m
 % Single-trial Model C + Body Kinematics + skull CoM preparation.
 %
-% CURRENT VALIDATION TARGET:
+% DEFAULT VALIDATION TARGET:
 %   condition 0 deg, trial 1
 %
 % This script deliberately stops after a validated, resampled skull CoM

@@ -71,20 +71,20 @@ assert(string(projectCfg.projectRoot) == projectRoot, ...
 trialCfg = struct;
 
 % Trial identity.
-trialCfg.conditionDeg = 0;
+trialCfg.conditionDeg = 45;
 trialCfg.trialNumber = 1;
 
 % Initial support interval used to assess filtering and extract the
 % Model B lock values. The 0.10 s offset avoids the beginning-of-record
 % endpoint while preserving the intended 0.25 s supported-pose duration.
-trialCfg.lockWindow = [0.10, 0.35];
+trialCfg.lockWindow = [0.10, 0.15];
 
 % Leave empty to use the Phase A checkpoint marker-file path.
 % Set an explicit local path when the checkpoint was created elsewhere.
 trialCfg.markerFile = "";
 
 % Execution controls.
-trialCfg.overwriteExisting = true;
+trialCfg.overwriteExisting = projectCfg.overwriteExisting;
 trialCfg.executeFinalIk = true;
 
 fprintf( ...

@@ -45,12 +45,12 @@ projectCfg = ...
 
 trialCfg = struct;
 
-trialCfg.conditionDeg = 30;
+trialCfg.conditionDeg = 45;
 trialCfg.trialNumber = 1;
 
 % Set true only if you deliberately want to replace the current SO
 % force/activation outputs.
-trialCfg.overwriteExisting = true;
+trialCfg.overwriteExisting = projectCfg.overwriteExisting;
 
 
 %% SECTION 1 — RESOLVE SETUP AND OUTPUT PATHS
