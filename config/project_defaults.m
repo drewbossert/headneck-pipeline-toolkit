@@ -128,6 +128,36 @@ cfg.pipeline.initializationIk = struct;
 % Validated acquisition window used by the current 20-second trials.
 cfg.pipeline.initializationIk.timeRangeSec = [0.00 19.99];
 
+% Coordinates retained in the Process-1 motion audit. These do not change
+% the IK solution; they define the shared QC report used by both the
+% single-trial example and Batch Process 1.
+cfg.pipeline.initializationIk.reviewCoordinates = [
+    "pitch2"
+    "roll2"
+    "yaw2"
+    "aux7jnt_r3"
+    "aux7jnt_r1"
+    "aux7jnt_r2"
+    "aux6jnt_r3"
+    "aux6jnt_r1"
+    "aux6jnt_r2"
+    "aux5jnt_r3"
+    "aux5jnt_r1"
+    "aux5jnt_r2"
+    "aux4jnt_r3"
+    "aux4jnt_r1"
+    "aux4jnt_r2"
+    "aux3jnt_r3"
+    "aux3jnt_r1"
+    "aux3jnt_r2"
+    "pitch1"
+    "roll1"
+    "yaw1"
+    "aux1jnt_r3"
+    "aux1jnt_r1"
+    "aux1jnt_r2"
+];
+
 % ---------------------------------------------------------------------
 % Process 2 / Model B / final IK
 % ---------------------------------------------------------------------
