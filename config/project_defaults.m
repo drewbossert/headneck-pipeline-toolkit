@@ -58,8 +58,8 @@ cfg.requireStaticOptimizationTemplate = true;
 %% Default execution behavior
 
 cfg.overwriteExisting = false;
-cfg.enableParallel = false;
-cfg.maxWorkers = 4;
+cfg.conditions = [];
+cfg.trials = [];
 
 %% Expected project resources
 
@@ -173,3 +173,10 @@ cfg.forceCapacity.configFile = "";
 cfg.forceCapacity.applyMode = "target";
 
 cfg.forceCapacity.requireAllEntries = true;
+
+%% Batch processing configuration
+
+cfg.batchProcessing = struct;
+
+cfg.batchProcessing.enableParallel = false;
+cfg.batchProcessing.maxWorkers = 4;
