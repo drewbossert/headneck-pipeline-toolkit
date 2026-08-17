@@ -55,11 +55,15 @@ cfg.staticOptimizationTemplate = fullfile( ...
 cfg.requireExternalLoadsTemplate = true;
 cfg.requireStaticOptimizationTemplate = true;
 
-%% Default execution behavior
+%% Study design and default execution behavior
 
+% Version-controlled study design used by the batch pipeline.
+% Local/process-specific scripts may override these to run a subset.
+cfg.conditions = [0 15 30 45];
+cfg.trials = 1:5;
+
+% Shared overwrite policy used by both single-trial and batch workflows.
 cfg.overwriteExisting = false;
-cfg.conditions = [];
-cfg.trials = [];
 
 %% Expected project resources
 
