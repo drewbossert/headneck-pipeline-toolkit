@@ -4,10 +4,10 @@ This folder contains example scripts for the headneck pipeline toolkit. Run the 
 
 ## Required execution order
 
-1. `../examples/run_single_trial_initialization.m`
+1. `../examples/run_single_trial_initialization_ik.m`
 2. `../examples/run_single_trial_model_b_filtered.m`
 3. `../examples/run_single_trial_static_optimization_prep.m`
-4. `../examples/run_single_trial_static_optimization_test.m`
+4. `../examples/run_single_trial_static_optimization.m`
 5. `../run_static_optimization_analysis.m`
 
 ## Instructions
