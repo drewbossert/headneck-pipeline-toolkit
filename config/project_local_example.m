@@ -5,11 +5,9 @@
 %
 % Edit only project_local.m. The local file is excluded from Git.
 %
-% Canonical configuration contract:
-%   - Machine-specific paths/settings belong here.
-%   - Study design (conditions/trials) lives in project_defaults.m.
-%   - Batch parallel settings live under cfg.batchProcessing.
-%   - Shared overwrite behavior remains cfg.overwriteExisting.
+% project_local.m should contain MACHINE-SPECIFIC settings only.
+% Study/scientific settings belong in project_defaults.m so different
+% machines cannot silently run different experimental configurations.
 
 %% Machine identity
 
@@ -17,13 +15,12 @@ cfg.machineName = "my-machine-name";
 
 %% Raw data location
 
-% This can be outside the repository.
 cfg.rawDataRoot = ...
     "C:\path\to\experimental\data";
 
 %% Output location
 
-% Leave this line commented to use:
+% Leave commented to use:
 %   <repository>\output
 %
 % cfg.outputRoot = ...
@@ -34,43 +31,44 @@ cfg.rawDataRoot = ...
 % Leave empty if OpenSim is already configured when MATLAB starts.
 cfg.opensimRoot = "";
 
-% Optional explicit paths if this machine needs manual configuration.
+% Optional explicit paths when manual OpenSim configuration is required.
 cfg.openSimJavaJar = "";
 cfg.openSimBinDirectory = "";
 
-%% Local runtime settings
+%% Shared local execution behavior
 
-% Shared overwrite behavior for single-trial and batch workflows.
 cfg.overwriteExisting = false;
 
-% Batch processing settings.
+%% Batch runtime settings
+
 cfg.batchProcessing.enableParallel = false;
 cfg.batchProcessing.maxWorkers = 4;
-
-%% Optional local study subset
-%
-% Normally leave the version-controlled study design in project_defaults.m:
-%
-%   cfg.conditions = [0 15 30 45];
-%   cfg.trials = 1:5;
-%
-% Uncomment only when intentionally restricting a machine/session to a
-% subset of the study.
-%
-% cfg.conditions = [0 15];
-% cfg.trials = 1:2;
+cfg.batchProcessing.continueOnError = true;
+cfg.batchProcessing.poolProfile = "local";
+cfg.batchProcessing.closePoolWhenFinished = false;
 
 %% Optional force-capacity profile
 %
-% The shared defaults leave force-capacity configuration disabled.
-% Uncomment these only when this machine/session should apply a saved
-% sensitivity profile.
+% This is an appropriate local override when running a specific sensitivity
+% profile from a machine-local or ignored JSON configuration.
 %
 % cfg.forceCapacity.enabled = true;
-% cfg.forceCapacity.configFile = fullfile( ...
-%     cfg.projectRoot, ...
-%     "config", ...
-%     "force_capacity", ...
-%     "example_force_config.json");
+% cfg.forceCapacity.configFile = ...
+%     "C:\path\to\force_capacity_profile.json";
 % cfg.forceCapacity.applyMode = "target";
 % cfg.forceCapacity.requireAllEntries = true;
+% cfg.forceCapacity.applyStages = "modelC";
+
+%% Intentionally NOT overridden here
+%
+% Keep the following in project_defaults.m:
+%
+%   cfg.conditions
+%   cfg.trials
+%   cfg.pipeline.*
+%   cfg.qc.*
+%   cfg.hsf.*
+%   cfg.analysis.*
+%
+% For a temporary smoke-test subset, pass explicit conditions/trials to the
+% example/batch orchestration layer rather than changing project_local.m.
