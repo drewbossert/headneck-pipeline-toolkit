@@ -1,8 +1,24 @@
 %% project_defaults.m
 % Shared, version-controlled project configuration.
 %
-% This script is called from load_project_config(). The variables cfg and
-% projectRoot already exist when this script runs.
+% This script is executed by load_project_config(). The variables:
+%
+%   cfg
+%   projectRoot
+%
+% already exist when this script runs.
+%
+% Configuration philosophy:
+%   - Study/scientific settings belong here and are version controlled.
+%   - Machine-specific paths/runtime overrides belong in project_local.m.
+%   - Per-trial identity belongs in trial context, not global config.
+%   - Package-function implementation defaults remain inside the package
+%     functions unless the project deliberately standardizes them.
+
+%% Configuration metadata
+
+cfg.configSchemaVersion = 2;
+cfg.projectName = "headneck-pipeline-toolkit";
 
 %% Repository directories
 
@@ -22,14 +38,28 @@ cfg.examplesDirectory = fullfile( ...
     projectRoot, ...
     "examples");
 
-% Default output location. A local config may override this.
+cfg.batchDirectory = fullfile( ...
+    projectRoot, ...
+    "batch");
+
+cfg.testsDirectory = fullfile( ...
+    projectRoot, ...
+    "tests");
+
+% Default output location. project_local.m may override this.
 cfg.outputRoot = fullfile( ...
     projectRoot, ...
     "output");
 
+%% Study design
+
+% Canonical study matrix. Batch job enumeration should use these values.
+% Thin example drivers may select one trial without modifying projectCfg.
+cfg.conditions = [0 15 30 45];
+cfg.trials = 1:5;
+
 %% Shared model files
 
-% Update these names to match the files currently in models/.
 cfg.kinematicBaseModel = fullfile( ...
     cfg.modelsDirectory, ...
     "4-mo_kine-only.osim");
@@ -52,26 +82,69 @@ cfg.staticOptimizationTemplate = fullfile( ...
     cfg.templatesDirectory, ...
     "so_setup_template.xml");
 
-cfg.requireExternalLoadsTemplate = true;
-cfg.requireStaticOptimizationTemplate = true;
-
-%% Study design and default execution behavior
-
-% Version-controlled study design used by the batch pipeline.
-% Local/process-specific scripts may override these to run a subset.
-cfg.conditions = [0 15 30 45];
-cfg.trials = 1:5;
-
-% Shared overwrite policy used by both single-trial and batch workflows.
-cfg.overwriteExisting = false;
-
 %% Expected project resources
 
 cfg.requireKinematicBaseModel = true;
 cfg.requireScalingBaseModel = true;
 cfg.requireInitializationIkTemplate = true;
+cfg.requireExternalLoadsTemplate = true;
+cfg.requireStaticOptimizationTemplate = true;
+
+%% Shared execution behavior
+
+% All file-producing pipeline stages should consume this value explicitly.
+% Package-level functions should still default to non-destructive behavior.
+cfg.overwriteExisting = false;
+
+%% Expected model structure
+
+cfg.modelValidation = struct;
+
+cfg.modelValidation.expectedCoordinateCount = 30;
+cfg.modelValidation.expectedConstraintCount = 18;
+
+%% Pipeline stage policy
+%
+% These fields define settings that must remain identical between thin
+% example drivers and batch workers.
+
+cfg.pipeline = struct;
+
+% ---------------------------------------------------------------------
+% Process 1 / Model A / initialization IK
+% ---------------------------------------------------------------------
+
+cfg.pipeline.initializationIk = struct;
+
+% Validated acquisition window used by the current 20-second trials.
+cfg.pipeline.initializationIk.timeRangeSec = [0.00 19.99];
+
+% ---------------------------------------------------------------------
+% Process 2 / Model B / final IK
+% ---------------------------------------------------------------------
+
+cfg.pipeline.modelB = struct;
+
+% Supported-pose interval used for lock-value extraction.
+% This is intentionally centralized so single-trial and batch workflows
+% cannot silently use different intervals.
+cfg.pipeline.modelB.lockWindowSec = [0.10 0.15];
+
+% ---------------------------------------------------------------------
+% Process 3 / Model C / SO preparation
+% ---------------------------------------------------------------------
+
+cfg.pipeline.staticOptimizationPrep = struct;
+
+% -1 disables additional Body Kinematics low-pass filtering.
+cfg.pipeline.staticOptimizationPrep.bodyKinematicsLowpassCutoffHz = -1;
+
+% Empty means use the complete validated final-IK time range.
+cfg.pipeline.staticOptimizationPrep.timeRangeSec = [];
 
 %% Locked-coordinate audit criteria
+
+cfg.qc = struct;
 
 cfg.qc.lockAudit = struct;
 
@@ -92,10 +165,8 @@ cfg.qc.lockAudit.requirePass = true;
 
 cfg.qc.lockExtraction = struct;
 
-% Statistic used to define the coordinate default and lock value.
 cfg.qc.lockExtraction.statistic = "median";
 
-% Maximum coordinate range allowed within the selected initial support window before the value is considered unstable.
 cfg.qc.lockExtraction.rotationToleranceDeg = 0.75;
 cfg.qc.lockExtraction.translationToleranceM = 2e-3;
 cfg.qc.lockExtraction.otherToleranceSI = 1e-8;
@@ -103,15 +174,13 @@ cfg.qc.lockExtraction.otherToleranceSI = 1e-8;
 cfg.qc.lockExtraction.minimumSamples = 2;
 cfg.qc.lockExtraction.requireStable = true;
 
-%% Model B lock-extraction filter assessment
+%% Model B lock-extraction filtering
 
 cfg.qc.lockExtractionFilter = struct;
 
-% Filtering is not yet enabled in the production pipeline.
 cfg.qc.lockExtractionFilter.enabled = true;
 
-% Coordinates included in cutoff-sensitivity assessment.
-% roll1/roll2 provide comparison channels for the noisy yaw coordinates.
+% Channels retained for cutoff-sensitivity/QC assessment.
 cfg.qc.lockExtractionFilter.assessmentCoordinates = [
     "roll1"
     "yaw1"
@@ -119,13 +188,12 @@ cfg.qc.lockExtractionFilter.assessmentCoordinates = [
     "yaw2"
 ];
 
-% Coordinates currently expected to require filtering in production.
+% Channels filtered in the validated production workflow.
 cfg.qc.lockExtractionFilter.filterCoordinates = [
     "yaw1"
     "yaw2"
 ];
 
-% Candidate cutoff frequencies for empirical assessment.
 cfg.qc.lockExtractionFilter.candidateCutoffsHz = [
     0.5
     1.0
@@ -135,48 +203,121 @@ cfg.qc.lockExtractionFilter.candidateCutoffsHz = [
 
 cfg.qc.lockExtractionFilter.prototypeOrder = 2;
 
-% Diagnostic plotting interval.
-cfg.qc.lockExtractionFilter.plotWindow = [0.00, 1.00];
+% Diagnostic plot interval only.
+cfg.qc.lockExtractionFilter.plotWindow = [0.00 1.00];
 
-% Working pipeline cutoff.
-% Second-order Butterworth applied with filtfilt gives an
-% effective fourth-order zero-phase magnitude response.
+% Validated production cutoff.
+% Second-order Butterworth + filtfilt gives a fourth-order zero-phase
+% magnitude response.
 cfg.qc.lockExtractionFilter.selectedCutoffHz = 1.0;
 
-%% HSF contact event detection
+%% HSF contact-event detection
 
 cfg.qc.hsfEventDetection = struct;
 
-% Initial support window used to define the baseline for contact-event detection.
+% Empty -> detector uses its validated default initial baseline interval.
 cfg.qc.hsfEventDetection.baselineWindow = [];
 
-% Threshold above which lift-off is considered. Lift-off threshold is strictly greater than the recontact threshold.
 cfg.qc.hsfEventDetection.liftOffThresholdM = 0.00150;
-% Threshold above which recontact is considered. Recontact threshold is strictly less than the lift-off threshold.
 cfg.qc.hsfEventDetection.recontactThresholdM = 0.00149;
 
-% Minimum duration of a contact event to be considered valid. Shorter events are ignored.
 cfg.qc.hsfEventDetection.minimumAboveDurationSec = 0.10;
-% Minimum duration of a non-contact event to be considered valid. Shorter events are ignored.
 cfg.qc.hsfEventDetection.minimumBelowDurationSec = 0.10;
 
-% Size of smoothing window applied to the HSF signal before event detection. A moving average is used.
+% Detection-only moving-median window.
 cfg.qc.hsfEventDetection.smoothingWindowSec = 0.05;
 
+% Empty -> search after the baseline through the end of the trajectory.
 cfg.qc.hsfEventDetection.searchWindow = [];
 
-%% Force capacity configuration
+%% Head-support-force formulation
+%
+% This project-level structure mirrors the validated HSF parameter names
+% used by +hsf so example and batch workers can create one identical
+% Parameters struct.
+%
+% useModelBodyMass=true means a future pipeline worker should overwrite
+% Parameters.SkullMassKg from the generated model before HSF synthesis.
+% The fallback value below equals the current production skull mass.
+
+cfg.hsf = struct;
+
+cfg.hsf.useModelBodyMass = true;
+
+cfg.hsf.Parameters = struct;
+
+cfg.hsf.Parameters.BodyName = "skull";
+cfg.hsf.Parameters.SkullMassKg = 1.1704014720812095;
+cfg.hsf.Parameters.GravityY = -9.80665;
+cfg.hsf.Parameters.TargetRateHz = 1000;
+cfg.hsf.Parameters.RampDuration = 0.10;
+cfg.hsf.Parameters.RampShape = "halfcosine";
+cfg.hsf.Parameters.RadialSign = 1;
+cfg.hsf.Parameters.AzimuthConvention = "x_cos_z_sin";
+cfg.hsf.Parameters.InterpolationMethod = "pchip";
+cfg.hsf.Parameters.ForcePrefix = "ground_force_1_v";
+cfg.hsf.Parameters.PointPrefix = "ground_force_1_p";
+
+%% Force-capacity configuration
 
 cfg.forceCapacity = struct;
 
 cfg.forceCapacity.enabled = false;
-
 cfg.forceCapacity.configFile = "";
 
-% Options: "target" (default), "scale". "target" uses the raw force value from the config. "scale" uses the scaling factor derived from the raw value. BEWARE: "scale" is not idempotent. If you run a pipeline with "scale" and then run it again, the scaling factor will be applied again, which may not be what you want. "target" is idempotent.
+% "target" is recommended for pipeline use because it is idempotent.
+% "scale" applies the saved factor to the target model's current value and
+% can compound if applied repeatedly.
 cfg.forceCapacity.applyMode = "target";
 
 cfg.forceCapacity.requireAllEntries = true;
+
+% Default application point. IK is force-independent, so Model C is the
+% first stage that needs the configured ForceSet for the current workflow.
+% Future workers may support additional stages without changing the JSON
+% schema.
+cfg.forceCapacity.applyStages = "modelC";
+
+%% Static Optimization analysis / plotting
+
+cfg.analysis = struct;
+cfg.analysis.staticOptimization = struct;
+
+analysisCfg = cfg.analysis.staticOptimization;
+
+% Optional exclusions as [condition_deg trial_num].
+analysisCfg.excludedTrials = zeros(0,2);
+
+% Piecewise normalization:
+%   0-20   initial support
+%   20-80  active/off-support motion
+%   80-100 final support
+analysisCfg.normalizedBreaksPercent = [0 20 80 100];
+analysisCfg.pointsPerPhase = [200 600 200];
+
+% All reported force/reserve summary statistics use this ROI only.
+analysisCfg.statisticsWindowPercent = [20 80];
+
+% Functional groups are authoritative ObjectGroups in the model.
+analysisCfg.flexionGroupName = "flexion";
+analysisCfg.extensionGroupName = "extension";
+
+% Current production model:
+%   flexion  = 8 unilateral members -> 16 bilateral
+%   extension = 18 unilateral members -> 36 bilateral
+analysisCfg.expectedFlexorCount = 16;
+analysisCfg.expectedExtensorCount = 36;
+
+analysisCfg.topReserveCount = 10;
+
+% Plot formatting.
+analysisCfg.conditionLegendOrderDeg = cfg.conditions;
+analysisCfg.yAxisLowerLimit = 0;
+analysisCfg.yAxisHeadroomFraction = 0.05;
+
+cfg.analysis.staticOptimization = analysisCfg;
+
+clear analysisCfg
 
 %% Batch processing configuration
 
@@ -184,3 +325,13 @@ cfg.batchProcessing = struct;
 
 cfg.batchProcessing.enableParallel = false;
 cfg.batchProcessing.maxWorkers = 4;
+
+% Continue other jobs when one trial fails; collect errors in the batch
+% summary rather than terminating the entire study.
+cfg.batchProcessing.continueOnError = true;
+
+% MATLAB parallel profile.
+cfg.batchProcessing.poolProfile = "local";
+
+% Leave an existing pool running after the batch script finishes.
+cfg.batchProcessing.closePoolWhenFinished = false;
