@@ -9,9 +9,21 @@
 % Prerequisite:
 %   Successful Process-3 checkpoint and prepared SO setup for each trial.
 %
-% Output:
-%   <outputRoot>/batch_qc/process_4_static_optimization_summary.csv
-%   <outputRoot>/batch_qc/process_4_static_optimization_summary.mat
+% Output when force-capacity configuration is enabled:
+%
+%   <outputRoot>/
+%       static_optimization_configs/
+%           <ConfigId>/
+%               batch_qc/
+%                   process_4_static_optimization_summary.csv
+%                   process_4_static_optimization_summary.mat
+%
+% Output when force-capacity configuration is disabled:
+%
+%   <outputRoot>/
+%       batch_qc/
+%           process_4_static_optimization_summary.csv
+%           process_4_static_optimization_summary.mat
 
 %% SECTION 0 — PROJECT CONFIGURATION
 
@@ -24,11 +36,13 @@ projectCfg = ...
 
 processCfg = struct;
 
-processCfg.conditions = ...
-    projectCfg.conditions(:).';
-
-processCfg.trials = ...
-    projectCfg.trials(:).';
+% processCfg.conditions = ...
+%     projectCfg.conditions(:).';
+% 
+% processCfg.trials = ...
+%     projectCfg.trials(:).';
+processCfg.conditions = 0;
+processCfg.trials = 1;
 
 processCfg.overwrite = ...
     projectCfg.overwriteExisting;
@@ -50,6 +64,55 @@ processCfg.closePoolWhenFinished = ...
 
 processCfg.executeStaticOptimization = ...
     true;
+
+% Strength-configuration batch identity
+
+processCfg.strengthConfigEnabled = ...
+    logical(projectCfg.forceCapacity.enabled);
+
+processCfg.configId = "";
+processCfg.musclePercent = NaN;
+processCfg.actuatorPercent = NaN;
+
+strengthContext = struct;
+
+if processCfg.strengthConfigEnabled
+
+    strengthContext = ...
+        pipeline.resolveStrengthConfigContext( ...
+            projectCfg);
+
+    processCfg.configId = ...
+        strengthContext.ConfigId;
+
+    processCfg.musclePercent = ...
+        strengthContext.MusclePercent;
+
+    processCfg.actuatorPercent = ...
+        strengthContext.ActuatorPercent;
+
+    assert( ...
+        strlength(processCfg.configId) > 0, ...
+        "BatchProcess4:StrengthConfigIdentityMissing", ...
+        "Enabled strength configuration did not resolve a valid ConfigId.");
+end
+
+if processCfg.strengthConfigEnabled
+
+    fprintf( ...
+        "Static Optimization strength configuration:\n" + ...
+        "  Config ID:        %s\n" + ...
+        "  Muscle capacity:  %g%%\n" + ...
+        "  Actuator capacity:%g%%\n", ...
+        processCfg.configId, ...
+        processCfg.musclePercent, ...
+        processCfg.actuatorPercent);
+
+else
+
+    fprintf( ...
+        "Static Optimization strength configuration disabled.\n");
+end
 
 fprintf( ...
     "Static Optimization output requirements:\n" + ...
@@ -220,10 +283,18 @@ disp(summaryTable(:, [
 
 %% SECTION 6 — WRITE BATCH SUMMARY
 
-batchQcDirectory = ...
-    string(fullfile( ...
-        projectCfg.outputRoot, ...
-        "batch_qc"));
+if processCfg.strengthConfigEnabled
+
+    batchQcDirectory = ...
+        strengthContext.Paths.BatchQcDirectory;
+
+else
+
+    batchQcDirectory = ...
+        string(fullfile( ...
+            projectCfg.outputRoot, ...
+            "batch_qc"));
+end
 
 if ~isfolder(batchQcDirectory)
     mkdir(batchQcDirectory);
@@ -264,13 +335,25 @@ writetable( ...
 batchSummary = struct;
 
 batchSummary.SchemaVersion = ...
-    1;
+    2;
 
 batchSummary.Process = ...
     4;
 
 batchSummary.Stage = ...
     "static_optimization";
+
+batchSummary.StrengthConfigEnabled = ...
+    processCfg.strengthConfigEnabled;
+
+batchSummary.ConfigId = ...
+    processCfg.configId;
+
+batchSummary.MusclePercent = ...
+    processCfg.musclePercent;
+
+batchSummary.ActuatorPercent = ...
+    processCfg.actuatorPercent;
 
 batchSummary.CompletedAt = ...
     string(datetime("now"));
@@ -344,6 +427,15 @@ function job = localRunProcess4Job( ...
 
     job.TrialStem = ...
         trial.TrialStem;
+
+    job.ConfigId = ...
+    processCfg.configId;
+
+    job.MusclePercent = ...
+        processCfg.musclePercent;
+
+    job.ActuatorPercent = ...
+        processCfg.actuatorPercent;
 
     job.Status = ...
         "not_started";
