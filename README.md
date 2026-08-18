@@ -1,278 +1,768 @@
 # Head-Neck Pipeline Toolkit
 
-MATLAB tools for a reproducible, quality-controlled OpenSim head-neck reprocessing workflow. The current pipeline takes trial marker trajectories through staged inverse kinematics, trial-specific model construction, simulated head-support-force (HSF) generation, Static Optimization, and condition-level force summaries.
+MATLAB and OpenSim tools for a reproducible, quality-controlled infant head-neck reprocessing workflow.
 
-The repository is currently designed around the included 4-month-old head-neck model and inclined-support trials. Its primary use cases are:
+The toolkit takes experimental marker trajectories through staged inverse kinematics, trial-specific model construction, simulated head-support-force (HSF) generation, Static Optimization, per-trial quality control, and optional condition-level analysis.
 
-- validating model and coordinate behavior before large analyses;
-- reprocessing individual trials with explicit QC checkpoints;
-- estimating cervical muscle and reserve-actuator demand during supported-to-unsupported motion;
-- comparing event-normalized flexor and extensor forces across support-angle conditions; and
-- developing a parallel batch workflow after the single-trial pipeline has been validated.
-
-This is a research toolkit, not a clinical application or a general-purpose OpenSim workflow. Coordinate groups, muscle groups, force conventions, templates, and QC tolerances are project-specific.
+The current repository is project-specific to the included 4-month-old head-neck model and inclined-support study. It is a research toolkit, not a clinical application or a general-purpose OpenSim framework. Coordinate groups, model assumptions, force conventions, templates, QC tolerances, and statistical definitions should be revalidated before adapting the workflow to a different model or experimental protocol.
 
 ## Current status
 
-The single-trial workflow is implemented end to end. It can build and validate Models A, B, and C; run both IK passes and Body Kinematics; detect lift-off and re-contact; generate HSF and ExternalLoads files; prepare and execute Static Optimization; audit its outputs; and create trial- and condition-level plots and tables.
+The computational workflow is implemented end to end for both single-trial validation and multi-trial batch processing.
 
-The scripts in [`batch/`](batch/) define the intended four-process batch architecture, but they are still under active development. Their trial-processing loop bodies, path resolution, parallel-pool management, progress reporting, and summary aggregation remain TODOs. Do not treat them as runnable unattended drivers yet.
+The repository uses a shared-worker architecture:
+
+- `examples/` contains thin, interactive single-trial wrappers for validating each processing stage.
+- `batch/` contains four multi-trial orchestration scripts that call the same pipeline workers.
+- `+pipeline/` contains the canonical stage implementations and trial-context/path resolution.
+- `run_static_optimization_analysis.m` is the final study-level QC and optional pooled-analysis wrapper.
+
+The single-trial and batch routes therefore use the same model-building, filtering, validation, HSF, and OpenSim execution code rather than maintaining separate implementations.
 
 ## Pipeline overview
 
-1. **Initialization IK (Model A)**
-   - Unlock all coordinates and enable coordinate-coupler constraints.
-   - Generate a trial-specific IK setup and run initialization IK.
-   - Audit model configuration, marker errors, coordinate coverage, and cervical motion.
-   - Save a checkpoint for review before creating Model B.
-2. **Locked final IK (Model B)**
-   - Optionally low-pass filter selected noisy initialization-IK coordinates for lock-value extraction.
-   - Estimate stable values over the initial supported-pose window.
-   - Lock the six root coordinates and four independent out-of-plane coordinates while keeping couplers enabled.
-   - Run final IK, audit locked and dependent coordinates, summarize sagittal motion, and save a checkpoint.
-3. **Static Optimization preparation (Model C and HSF)**
-   - Build Model C by disabling couplers and locking the root and all independent/dependent out-of-plane coordinates at final-IK values.
-   - Optionally apply a saved force-capacity configuration.
-   - Run skull Body Kinematics in ground, extract its center-of-mass trajectory, and resample it to the HSF target rate.
-   - Detect lift-off and re-contact from native-rate 3-D skull-CoM displacement.
-   - Generate the HSF `.mot`, trial-specific `ExternalLoads` XML, and Static Optimization setup XML.
-   - Save preparation QC and a Model C checkpoint.
-4. **Static Optimization**
-   - Execute the prepared OpenSim `AnalyzeTool` setup.
-   - Locate and audit the generated force and activation `.sto` files, including structure and requested time coverage.
-   - Save the output audit and run checkpoint.
-5. **Post-processing**
-   - Identify muscle columns from Model C rather than fixed output indices.
-   - Expand configured flexion/extension `ObjectGroup` members bilaterally.
-   - Audit reserve/non-muscle actuators.
-   - Normalize each trial into initial support, active/off-support, and final support phases.
-   - Write per-trial plots, combined tables, condition summaries, and mean +/- SD plots.
+### Process 1 — Initialization IK / Model A
 
-The stage boundaries are deliberate. Inspect each checkpoint and its associated CSV/XML/model outputs before continuing, especially when introducing a new model, trial type, or force-capacity configuration.
+1. Resolve the trial identity and canonical file paths.
+2. Build **Model A** from the kinematic base model.
+3. Unlock all coordinates.
+4. Enable coordinate-coupler constraints.
+5. Prepare and execute initialization inverse kinematics.
+6. Audit model structure and initialization-IK coordinate behavior.
+7. Save Process-1 QC outputs and a checkpoint.
+
+Canonical worker:
+
+```matlab
+pipeline.runInitializationIkTrial
+```
+
+### Process 2 — Locked final IK / Model B
+
+1. Validate the completed Process-1 checkpoint.
+2. Optionally filter selected initialization-IK coordinates used for lock extraction.
+3. Estimate stable supported-pose values over the configured lock window.
+4. Build **Model B**.
+5. Lock the six root coordinates and four independent out-of-plane coordinates.
+6. Keep coordinate-coupler constraints enabled.
+7. Prepare and execute final IK.
+8. Audit requested locks, dependent out-of-plane behavior, and sagittal motion.
+9. Save Process-2 QC outputs and a checkpoint.
+
+Canonical worker:
+
+```matlab
+pipeline.runModelBTrial
+```
+
+### Process 3 — Static Optimization preparation / Model C / HSF
+
+1. Validate the completed Process-2 checkpoint.
+2. Build **Model C** from Model B and the accepted final-IK trajectory.
+3. Disable coordinate-coupler constraints.
+4. Lock the root and all independent/dependent out-of-plane coordinates.
+5. Leave sagittal coordinates unlocked so the final-IK sagittal trajectories drive Static Optimization.
+6. Optionally apply a saved force-capacity JSON configuration to Model C.
+7. Run skull Body Kinematics in ground.
+8. Extract the skull center-of-mass trajectory.
+9. Resample skull CoM to the configured HSF rate.
+10. Detect lift-off and re-contact from the native-rate skull-CoM trajectory.
+11. Generate the HSF `.mot`.
+12. Generate the trial-specific `ExternalLoads` XML.
+13. Generate the trial-specific Static Optimization setup XML.
+14. Save Process-3 QC outputs and a checkpoint.
+
+Canonical worker:
+
+```matlab
+pipeline.prepareStaticOptimizationTrial
+```
+
+### Process 4 — Static Optimization
+
+1. Validate the completed Process-3 checkpoint.
+2. Validate the prepared Static Optimization setup.
+3. Execute the OpenSim `AnalyzeTool` setup.
+4. Locate the generated force and activation `.sto` files.
+5. Audit result structure and requested time coverage.
+6. Save Process-4 QC outputs and a checkpoint.
+
+Canonical worker:
+
+```matlab
+pipeline.runStaticOptimizationTrial
+```
+
+### Final analysis — per-trial QC and optional pooled analysis
+
+The root-level wrapper:
+
+```matlab
+run_static_optimization_analysis
+```
+
+does not assume that every configured trial completed Static Optimization.
+
+Instead, it:
+
+1. recursively searches `projectCfg.outputRoot` for existing `*StaticOptimization_force.sto` files;
+2. creates an auditable discovery manifest;
+3. verifies the companion activation, Model C, and event-summary artifacts required for QC;
+4. generates per-trial QC plots for every complete detected result;
+5. prompts the user whether to continue into pooled/condition-level analysis;
+6. warns before pooling results that appear to come from multiple batch roots; and
+7. writes combined normalized waveforms, trial metrics, reserve audits, muscle-group audits, condition summaries, and mean ± SD plots when pooled analysis is requested.
+
+Discovery is handled by:
+
+```matlab
+pipeline.discoverStaticOptimizationResults
+```
 
 ## Requirements
 
-- MATLAB with package-folder, string-array, table, JSON, UI, and `matlab.unittest` support.
-- OpenSim 4.5 with its MATLAB/Java bindings configured for model operations and tool execution.
+- MATLAB with support for:
+  - package folders;
+  - string arrays;
+  - tables;
+  - JSON;
+  - UI functions;
+  - `matlab.unittest`.
+- OpenSim 4.5 with MATLAB/Java bindings configured for model operations and tool execution.
 - Signal Processing Toolbox for Butterworth filtering, zero-phase filtering, and PSD diagnostics.
-- Parallel Computing Toolbox only when the batch scripts are completed and parallel execution is enabled.
+- Parallel Computing Toolbox when parallel batch execution is enabled.
 
-OpenSim-independent table I/O and many HSF/model-preparation helper tests do not require an OpenSim model to be loaded.
+Many configuration, file-I/O, discovery, and contract tests do not require OpenSim execution.
 
 ## Installation
 
-Clone the repository and add its root directory to the MATLAB path:
+Clone the repository:
 
 ```bash
 git clone https://github.com/drewbossert/headneck-pipeline-toolkit.git
 ```
 
+Add the **repository root** to the MATLAB path:
+
 ```matlab
-repositoryRoot = "C:\path\to\headneck-pipeline-toolkit";
+repositoryRoot = ...
+    "C:\path\to\headneck-pipeline-toolkit";
+
 addpath(repositoryRoot);
 ```
 
-Add the repository root, not the individual package directories. MATLAB resolves `+opensimio`, `+modelprep`, `+opensimrun`, and `+hsf` through their parent directory.
+Do not add the individual `+package` directories directly. MATLAB resolves package functions through the repository root.
 
-Confirm that MATLAB can find the toolkit and OpenSim bindings:
+Useful checks:
 
 ```matlab
-which opensimio.readMot
+which pipeline.resolveTrialContext
+which pipeline.runInitializationIkTrial
 which modelprep.buildInitializationModel
 which opensimrun.runStaticOptimizationSetup
+which opensimio.readMot
+
 import org.opensim.modeling.*
 ```
 
 ## Configuration
 
-Version-controlled defaults are stored in [`config/project_defaults.m`](config/project_defaults.m). Create the required machine-local configuration:
+Configuration is loaded through:
+
+```matlab
+projectCfg = ...
+    load_project_config();
+```
+
+The configuration schema is versioned and separates shared scientific settings from machine-specific settings.
+
+### Shared project settings
+
+Version-controlled defaults live in:
+
+```text
+config/project_defaults.m
+```
+
+These include:
+
+- canonical conditions and trials;
+- model and template locations;
+- pipeline stage settings;
+- lock-extraction and lock-audit tolerances;
+- filtering policy;
+- HSF event-detection settings;
+- HSF formulation parameters;
+- optional force-capacity behavior;
+- Static Optimization output requirements;
+- analysis normalization/statistics settings; and
+- batch execution defaults.
+
+The current canonical study matrix is:
+
+```matlab
+cfg.conditions = [0 15 30 45];
+cfg.trials = 1:5;
+```
+
+The current marker filename pattern is:
+
+```matlab
+cfg.pipeline.trialInput.markerFilePattern = ...
+    "%dDEG%04d.trc";
+```
+
+### Machine-specific settings
+
+Copy:
+
+```text
+config/project_local_example.m
+```
+
+to:
+
+```text
+config/project_local.m
+```
+
+or from MATLAB:
 
 ```matlab
 copyfile( ...
-    fullfile(repositoryRoot, "config", "project_local_example.m"), ...
-    fullfile(repositoryRoot, "config", "project_local.m"));
+    fullfile( ...
+        repositoryRoot, ...
+        "config", ...
+        "project_local_example.m"), ...
+    fullfile( ...
+        repositoryRoot, ...
+        "config", ...
+        "project_local.m"));
 ```
 
-Edit `config/project_local.m` to provide a real `rawDataRoot` and any machine-specific output or OpenSim paths. The local file is ignored by Git. Then load and validate the merged configuration:
+Edit only the machine-specific values in `project_local.m`, such as:
+
+- `cfg.rawDataRoot`;
+- optional `cfg.outputRoot`;
+- OpenSim installation paths;
+- overwrite behavior;
+- batch parallel settings; and
+- an optional machine-local force-capacity JSON profile.
+
+Study/scientific settings should remain in `project_defaults.m`.
+
+For configuration-only tests that do not require local paths:
 
 ```matlab
-cfg = load_project_config();
+cfg = ...
+    load_project_config( ...
+        "RequireLocalConfig", false, ...
+        "ValidatePaths", false);
 ```
 
-For an operation that only needs repository defaults, local-file and path validation can be relaxed explicitly:
+## Trial context and canonical paths
+
+All production stages use:
 
 ```matlab
-cfg = load_project_config( ...
-    "RequireLocalConfig", false, ...
-    "ValidatePaths", false);
+trial = ...
+    pipeline.resolveTrialContext( ...
+        projectCfg, ...
+        conditionDeg, ...
+        trialNumber);
 ```
 
-Important configuration groups include:
+The resolver is the single authority for:
 
-- `cfg.qc.lockExtraction` and `cfg.qc.lockExtractionFilter` for Model B lock estimation;
-- `cfg.qc.lockAudit` for locked-coordinate validation;
-- `cfg.qc.hsfEventDetection` for CoM-based contact-event detection;
-- `cfg.forceCapacity` for optional JSON-based ForceSet changes; and
-- `cfg.conditions`, `cfg.trials`, and `cfg.batchProcessing` for the developing batch workflow.
+- trial identity;
+- condition/trial naming;
+- marker-file resolution;
+- process directories;
+- QC directories;
+- expected model/setup/motion filenames; and
+- checkpoint locations.
 
-Generated results are written to `output/` unless `cfg.outputRoot` is overridden. Raw trials belong under the configured raw-data root or `input/trial_data/`; generated outputs and local configuration are excluded from version control.
+It is intentionally side-effect free: resolving a trial does not create directories or execute OpenSim.
 
-## Running the validated single-trial workflow
+Example:
 
-The main example drivers are sectioned scripts intended to be run from the MATLAB Editor. Set the trial identity, paths, time windows, and execution/overwrite flags near the beginning of each script.
+```matlab
+trial = ...
+    pipeline.resolveTrialContext( ...
+        projectCfg, ...
+        45, ...
+        1);
 
-Run them in this order:
+trial.TrialStem
+% "45deg_trial01"
 
-1. [`examples/run_single_trial_initialization_ik.m`](examples/run_single_trial_initialization_ik.m) builds Model A, prepares and runs initialization IK, writes QC tables, and saves the Phase A checkpoint.
-2. [`examples/run_single_trial_model_b_filtered.m`](examples/run_single_trial_model_b_filtered.m) resumes from Phase A, filters selected lock-extraction trajectories when enabled, builds Model B, runs final IK, audits the result, and saves the Model B checkpoint.
-3. [`examples/run_single_trial_static_optimization_prep.m`](examples/run_single_trial_static_optimization_prep.m) builds and validates Model C, runs Body Kinematics, detects contact events, generates HSF and ExternalLoads, prepares the Static Optimization XML, and saves the Model C/HSF checkpoint.
-4. [`examples/run_single_trial_static_optimization_test.m`](examples/run_single_trial_static_optimization_test.m) executes one previously prepared and manually reviewed Static Optimization setup and audits the force/activation outputs.
-5. [`examples/run_static_optimization_plotting_pipeline.m`](examples/run_static_optimization_plotting_pipeline.m) processes whichever completed trials are available, creates per-trial diagnostics, and aggregates condition-level results.
+trial.Inputs.MarkerFile
+trial.Paths.Initialization.IkMotionFile
+trial.Paths.ModelB.FinalIkMotionFile
+trial.Paths.StaticOptimizationPrep.ModelCFile
+trial.Paths.StaticOptimization.SetupFile
+```
 
-[`examples/run_single_trial_static_optimization_prep_force_config_test.m`](examples/run_single_trial_static_optimization_prep_force_config_test.m) is the preparation variant for validating an optional saved force-capacity configuration before it is incorporated into routine processing.
+## Running one trial interactively
 
-A typical output tree is:
+The four single-trial wrappers in `examples/` are intended for staged validation and interactive review.
+
+Run them in order:
+
+1. [`examples/run_single_trial_initialization_ik.m`](examples/run_single_trial_initialization_ik.m)
+2. [`examples/run_single_trial_model_b_filtered.m`](examples/run_single_trial_model_b_filtered.m)
+3. [`examples/run_single_trial_static_optimization_prep.m`](examples/run_single_trial_static_optimization_prep.m)
+4. [`examples/run_single_trial_static_optimization.m`](examples/run_single_trial_static_optimization.m)
+
+After Static Optimization results exist, run:
+
+5. [`run_static_optimization_analysis.m`](run_static_optimization_analysis.m)
+
+The example drivers select a trial locally but call the same `+pipeline` workers used by the batch scripts.
+
+### Interactive force-capacity selection in Process 3
+
+The single-trial Process-3 wrapper prompts the user to either:
+
+- select a saved force-capacity JSON file through a file-selection dialog; or
+- continue without applying a force-capacity configuration.
+
+A selected profile is applied to a local copy of `projectCfg` for that run only. The project configuration files are not modified.
+
+## Running the batch pipeline
+
+The batch drivers process the configured condition × trial matrix and call the same workers used by the single-trial examples.
+
+Run them sequentially:
+
+1. [`batch/batch_run_process_1.m`](batch/batch_run_process_1.m)
+2. [`batch/batch_run_process_2.m`](batch/batch_run_process_2.m)
+3. [`batch/batch_run_process_3.m`](batch/batch_run_process_3.m)
+4. [`batch/batch_run_process_4.m`](batch/batch_run_process_4.m)
+
+Each process validates its upstream checkpoint before continuing.
+
+Batch behavior is controlled by:
+
+```matlab
+cfg.batchProcessing.enableParallel
+cfg.batchProcessing.maxWorkers
+cfg.batchProcessing.continueOnError
+cfg.batchProcessing.poolProfile
+cfg.batchProcessing.closePoolWhenFinished
+```
+
+When parallel execution is enabled, jobs are distributed across the configured MATLAB parallel pool.
+
+Each batch process writes an aggregate CSV and MAT summary under:
 
 ```text
-output/<condition>/<trial>/
-|-- 01_initialization_ik/
-|-- 02_locked_final_ik/
-|-- 03_static_optimization_prep/
-|   |-- body_kinematics/
-|   |-- head_support_force/
-|   `-- qc/
-`-- 04_static_optimization/
-    |-- results/
-    `-- qc/
-
-output/static_optimization_analysis/
+<outputRoot>/batch_qc/
 ```
 
-The scripts default to project validation trials and may contain trial-specific settings. Review Section 0 in every driver rather than running the files unchanged.
-
-## Batch workflow under development
-
-The batch scripts mirror the validated single-trial stages and are intended to process every configured condition/trial combination. The current planned contract is:
-
-| Script | Intended responsibility | Expected handoff | Current implementation status |
-| --- | --- | --- | --- |
-| [`batch_run_process_1.m`](batch/batch_run_process_1.m) | Build Model A, prepare/run initialization IK, validate essential outputs, and collect timing/summary records for each trial. | Phase A model, IK motion/setup, and machine-readable QC/checkpoint data. | Configuration scaffold and placeholder nested `parfor`/trial loop only. |
-| [`batch_run_process_2.m`](batch/batch_run_process_2.m) | Read accepted Process 1 results, filter/extract supported-pose lock values, build Model B, run final IK, and audit locked/dependent coordinates. | Model B, final-IK motion/setup, lock/QC tables, and Model B checkpoint. | Configuration scaffold and placeholder nested `parfor`/trial loop only. |
-| [`batch_run_process_3.m`](batch/batch_run_process_3.m) | Read accepted Model B results; build Model C; optionally apply force capacities; run skull Body Kinematics; detect events; generate HSF, ExternalLoads, and the trial-specific Static Optimization setup. | Validated Model C, HSF artifacts, SO setup, preparation QC, and checkpoint. | Configuration scaffold and placeholder nested `parfor`/trial loop only. |
-| [`batch_run_process_4.m`](batch/batch_run_process_4.m) | Execute prepared Static Optimization analyses, which may take about 20 minutes per trial, then audit outputs and aggregate run summaries. | Force/activation `.sto` files, output-audit tables, timings, and batch status. | Execution guard and progress message only; no condition/trial loop yet. |
-
-Before these drivers are ready for production, each needs deterministic input/output resolution, preflight validation of upstream checkpoints, overwrite/resume behavior, correct iteration over `cfg.conditions` and `cfg.trials`, parallel-pool handling through `cfg.batchProcessing`, error isolation, and consolidated status/timing reports. Until then, use the single-trial drivers as the executable reference implementation.
-
-The plotting pipeline already supports multiple trials and conditions, skips missing trials, permits explicit exclusions, and can be used after manually or eventually batch-generated Static Optimization results.
-
-## Package reference
-
-### `opensimio`: OpenSim files and templates
-
-Read and write `.mot` and `.sto` numeric tables while retaining labels and header metadata:
+Individual job failures are captured in the batch summary so unrelated trials can continue when:
 
 ```matlab
-motion = opensimio.readMot("coordinates.mot");
-storage = opensimio.readSto("results.sto");
-
-opensimio.writeMot("coordinates_copy.mot", motion);
-opensimio.writeSto("results_copy.sto", storage);
+cfg.batchProcessing.continueOnError = true;
 ```
 
-The package also reads/writes XML and UTF-8 text, and performs strict `{{TOKEN}}` template rendering. See [`examples/example_io_usage.m`](examples/example_io_usage.m).
+### Force-capacity configuration in batch Process 3
 
-### `modelprep`: model construction, force capacities, and QC
+Batch execution is intentionally non-interactive.
 
-The three model states are:
-
-- **Model A:** all coordinates unlocked, constraints enabled, for initialization IK.
-- **Model B:** root and independent out-of-plane coordinates locked, constraints enabled, for final IK.
-- **Model C:** root and all out-of-plane coordinates locked, couplers disabled, for Static Optimization.
+To apply a saved profile to Model C during batch processing, configure:
 
 ```matlab
-groups = modelprep.coordinateGroups();
+cfg.forceCapacity.enabled = true;
 
-modelprep.buildInitializationModel(baseModelFile, modelAFile);
+cfg.forceCapacity.configFile = ...
+    "C:\path\to\force_capacity_profile.json";
 
-lockValues = modelprep.extractStableCoordinateValues( ...
-    initializationIkMotion, modelAFile, ...
-    groups.FinalIkLocked, [0.10, 0.15]);
+cfg.forceCapacity.applyMode = ...
+    "target";
 
-modelprep.buildLockedIkModel(baseModelFile, lockValues, modelBFile);
-modelprep.buildStaticOptimizationModel(modelBFile, finalIkFile, modelCFile);
+cfg.forceCapacity.requireAllEntries = ...
+    true;
+
+cfg.forceCapacity.applyStages = ...
+    "modelC";
 ```
 
-Additional utilities inspect and validate models, audit locked coordinates, summarize/filter motion, assess cutoff sensitivity, resolve bilateral muscle groups, and inspect/edit ForceSet capacity values. The interactive editor can save reusable JSON configurations containing exact target values or scale factors; `target` application is recommended for idempotent pipeline runs.
+`target` mode is recommended for routine pipeline execution because it is idempotent. `scale` mode applies a factor to the model's current value and can compound if applied repeatedly.
 
-### `opensimrun`: OpenSim setup and execution
+## Model states
 
-This package prepares trial-specific IK, ExternalLoads, and Static Optimization XML files while preserving scientific settings in the shared templates. It executes IK, Body Kinematics/AnalyzeTool, and Static Optimization through the OpenSim MATLAB bindings.
+The workflow uses three explicit model states.
+
+### Model A
+
+- all coordinates unlocked;
+- coordinate-coupler constraints enabled;
+- used for initialization IK.
+
+### Model B
+
+- root coordinates locked;
+- independent out-of-plane coordinates locked;
+- coordinate-coupler constraints enabled;
+- sagittal drivers remain available;
+- used for final IK.
+
+### Model C
+
+- root coordinates locked;
+- independent and dependent out-of-plane coordinates locked;
+- coordinate-coupler constraints disabled;
+- sagittal coordinates remain unlocked;
+- used for Body Kinematics, HSF preparation, and Static Optimization.
+
+Coordinate definitions are centralized in:
 
 ```matlab
-setup = opensimrun.prepareStaticOptimizationSetup( ...
-    cfg.staticOptimizationTemplate, outputSetupFile, ...
-    "ModelFile", modelCFile, ...
-    "CoordinatesFile", finalIkFile, ...
-    "ExternalLoadsFile", externalLoadsFile, ...
-    "ResultsDirectory", resultsDirectory);
-
-run = opensimrun.runStaticOptimizationSetup( ...
-    setup.OutputFile, "Overwrite", false);
+groups = ...
+    modelprep.coordinateGroups();
 ```
 
-`runStaticOptimizationSetup` verifies the setup structure, executes `AnalyzeTool`, locates force and activation results, and checks their structure and time range.
+## Model-B filtering and lock extraction
 
-### `hsf`: simulated head-support forces
+The production lock-extraction policy is version controlled.
 
-The HSF model balances skull weight in global `+Y` while adding the radial force required by the inclined support condition:
+Current settings include:
+
+```matlab
+cfg.pipeline.modelB.lockWindowSec = ...
+    [0.10 0.15];
+
+cfg.qc.lockExtractionFilter.filterCoordinates = [
+    "yaw1"
+    "yaw2"
+];
+
+cfg.qc.lockExtractionFilter.selectedCutoffHz = ...
+    1.0;
+```
+
+The production filter is a second-order Butterworth low-pass filter applied with `filtfilt`, giving a zero-phase fourth-order magnitude response.
+
+Scientific diagnostic scripts remain available for evaluating the filtering decision:
+
+- [`examples/assess_single_trial_lock_filter.m`](examples/assess_single_trial_lock_filter.m)
+- [`examples/assess_initialization_ik_psd.m`](examples/assess_initialization_ik_psd.m)
+
+Both diagnostics use the same trial resolver and centralized filtering configuration as the production pipeline.
+
+## Head-support-force formulation
+
+The validated HSF workflow uses the skull center of mass as the force application point in ground.
+
+For skull weight:
 
 ```text
-W  = skullMass * abs(gravityY)
-Fr = W * tan(conditionAngle)
+W = skullMass * abs(gravityY)
+```
+
+and support angle `theta`:
+
+```text
+Fr = W * tan(theta)
+
 Fy = W
 Fx = radialSign * Fr * cos(gndroll)
 Fz = radialSign * Fr * sin(gndroll)
 ```
 
-The force application point follows the skull CoM in ground. The default output rate is 1000 Hz. A half-cosine support envelope ramps force to zero before detected lift-off, keeps it off during the unsupported interval, and restores it after re-contact.
+The current project configuration uses:
 
-Generated load files contain `time`, the three `ground_force_1_v*` components, and the three `ground_force_1_p*` application-point components. Torque columns are intentionally omitted.
+- body: `skull`;
+- target rate: `1000 Hz`;
+- interpolation: `pchip`;
+- ramp duration: `0.10 s`;
+- ramp shape: half cosine;
+- force prefix: `ground_force_1_v`;
+- point prefix: `ground_force_1_p`.
 
-The package supports both an end-to-end convenience call (`hsf.generateTrial`) and explicit staged calls for QC (`readBodyCom`, `resampleCom`, `detectContactEventsFromCom`, and `generateFromResampledCom`). The validated pipeline uses the explicit staged route so raw/resampled CoM and event detection can be reviewed.
-
-## Tests and diagnostics
-
-With the repository root on the MATLAB path, run all checked-in unit tests with:
+When:
 
 ```matlab
-results = runtests(fullfile(repositoryRoot, "tests"));
+cfg.hsf.useModelBodyMass = true;
+```
+
+Process 3 reads the skull mass from the generated Model C before HSF synthesis.
+
+### Contact-event detection
+
+Lift-off and re-contact are detected from the **native-rate** skull-CoM trajectory using baseline-relative 3-D displacement.
+
+The current project configuration uses:
+
+```matlab
+cfg.qc.hsfEventDetection.liftOffThresholdM = ...
+    0.00150;
+
+cfg.qc.hsfEventDetection.recontactThresholdM = ...
+    0.00149;
+
+cfg.qc.hsfEventDetection.smoothingWindowSec = ...
+    0.05;
+```
+
+with sustained threshold durations of `0.10 s`.
+
+The support force is ramped to zero around lift-off/re-contact and remains zero during the unsupported interval.
+
+Generated HSF loads contain:
+
+```text
+time
+ground_force_1_vx
+ground_force_1_vy
+ground_force_1_vz
+ground_force_1_px
+ground_force_1_py
+ground_force_1_pz
+```
+
+Torque columns are intentionally omitted.
+
+The production pipeline uses the explicit staged HSF functions:
+
+```text
+readBodyCom
+resampleCom
+detectContactEventsFromCom
+extractCoordinateValue
+generateFromResampledCom
+```
+
+to retain auditable intermediate CoM and event-detection outputs.
+
+## Static Optimization analysis
+
+The study-level analysis settings are stored under:
+
+```matlab
+cfg.analysis.staticOptimization
+```
+
+The current piecewise normalization is:
+
+```text
+0–20%    initial support
+20–80%   active / off-support interval
+80–100%  final support
+```
+
+The complete normalized waveform is retained for plotting and QC.
+
+Reported force and reserve summary statistics use only:
+
+```matlab
+cfg.analysis.staticOptimization. ...
+    statisticsWindowPercent = [20 80];
+```
+
+The functional muscle groups are read from authoritative `ObjectGroup` definitions in Model C rather than fixed output-column positions.
+
+The current expected resolved group sizes are:
+
+```text
+Flexion:   16 bilateral muscles
+Extension: 36 bilateral muscles
+```
+
+Muscles outside those explicit groups remain in the model but are excluded from the flexor/extensor sums.
+
+The final analysis wrapper also audits non-muscle/reserve activation columns.
+
+## Output structure
+
+A canonical trial output tree is:
+
+```text
+<outputRoot>/
+└── <condition>/
+    └── <trial>/
+        ├── 01_initialization_ik/
+        │   └── qc/
+        ├── 02_locked_final_ik/
+        │   └── qc/
+        ├── 03_static_optimization_prep/
+        │   ├── body_kinematics/
+        │   │   ├── results/
+        │   │   └── qc/
+        │   ├── head_support_force/
+        │   │   └── qc/
+        │   └── qc/
+        └── 04_static_optimization/
+            ├── results/
+            └── qc/
+                └── plots/
+```
+
+Batch-level summaries are written to:
+
+```text
+<outputRoot>/batch_qc/
+```
+
+Study-level Static Optimization analysis is written to:
+
+```text
+<outputRoot>/static_optimization_analysis/
+```
+
+including the result-discovery manifest and, when requested, combined trial/condition tables and plots.
+
+## Package reference
+
+### `+pipeline`
+
+Shared workflow orchestration and study-level result discovery.
+
+Key functions:
+
+```matlab
+pipeline.resolveTrialContext
+pipeline.runInitializationIkTrial
+pipeline.runModelBTrial
+pipeline.prepareStaticOptimizationTrial
+pipeline.runStaticOptimizationTrial
+pipeline.discoverStaticOptimizationResults
+```
+
+### `+modelprep`
+
+Model construction, coordinate configuration, validation, filtering, muscle-group resolution, locked-coordinate QC, and force-capacity tools.
+
+Representative functions include:
+
+```matlab
+modelprep.coordinateGroups
+modelprep.buildInitializationModel
+modelprep.buildLockedIkModel
+modelprep.buildStaticOptimizationModel
+modelprep.validateModelConfiguration
+modelprep.auditLockedCoordinates
+modelprep.filterCoordinateMotion
+modelprep.assessCoordinateFilterSensitivity
+modelprep.getBilateralMuscleGroupMembers
+modelprep.applyConfiguredForceCapacitiesIfEnabled
+```
+
+The package also contains an interactive force-capacity editor for building reusable JSON configurations.
+
+### `+opensimrun`
+
+Preparation and execution of OpenSim tools and setup files.
+
+Representative functions include:
+
+```matlab
+opensimrun.prepareInverseKinematicsSetup
+opensimrun.runInverseKinematicsSetup
+opensimrun.runBodyKinematicsForCom
+opensimrun.prepareExternalLoadsSetup
+opensimrun.prepareStaticOptimizationSetup
+opensimrun.runStaticOptimizationSetup
+```
+
+### `+opensimio`
+
+OpenSim table, XML, text, and template I/O.
+
+Representative usage:
+
+```matlab
+motion = ...
+    opensimio.readMot("coordinates.mot");
+
+storage = ...
+    opensimio.readSto("results.sto");
+
+opensimio.writeMot( ...
+    "coordinates_copy.mot", ...
+    motion);
+```
+
+See:
+
+```text
+examples/example_io_usage.m
+```
+
+for focused library examples.
+
+### `+hsf`
+
+Skull-CoM processing, contact-event detection, HSF mechanics, and HSF motion generation.
+
+The production pipeline uses staged calls so the native/resampled CoM trajectories and event-detection results remain available for QC.
+
+## Tests
+
+Run all repository tests from MATLAB with the repository root on the path:
+
+```matlab
+results = ...
+    runtests( ...
+        fullfile( ...
+            repositoryRoot, ...
+            "tests"));
+
 assertSuccess(results);
 ```
 
-Some tests are OpenSim-independent; model integration and the executable example drivers require configured OpenSim bindings and appropriate trial data.
+The test suite includes:
 
-Additional diagnostic scripts include:
+- OpenSim table-I/O tests;
+- HSF helper tests;
+- model-preparation helper tests;
+- configuration contract tests;
+- trial-context/path contract tests;
+- Process-1 pipeline contract tests;
+- Process-2 pipeline contract tests;
+- Process-3 pipeline contract tests;
+- Process-4 pipeline contract tests; and
+- Static Optimization result-discovery tests.
 
-- [`examples/assess_single_trial_lock_filter.m`](examples/assess_single_trial_lock_filter.m) for lock-filter cutoff sensitivity;
-- [`examples/assess_initialization_ik_psd.m`](examples/assess_initialization_ik_psd.m) for initialization-IK spectral diagnostics; and
-- [`examples/example_audit_locked_coordinates.m`](examples/example_audit_locked_coordinates.m) for focused locked-coordinate auditing.
+The pipeline contract tests are intentionally lightweight and generally validate configuration, path contracts, dependencies, and worker availability without rerunning OpenSim.
 
 ## Repository layout
 
 ```text
-+opensimio/    OpenSim table, XML, text, and template I/O
-+modelprep/    Model construction, force-capacity tools, and QC
-+opensimrun/   OpenSim setup preparation and tool execution
-+hsf/          Contact detection and head-support-force generation
-batch/         Four-stage batch orchestration scaffolds under development
-config/        Shared defaults and local configuration template
-examples/      Sectioned validation drivers, plotting, and focused examples
-input/         Reusable OpenSim templates and local trial-data location
-models/        Project OpenSim models and geometry
-tests/         MATLAB unit tests and fixtures
-output/        Generated results; ignored except for `.gitkeep`
++pipeline/      Shared pipeline workers, trial context, result discovery
++modelprep/     Model construction, coordinate/ForceSet tools, QC
++opensimrun/    OpenSim setup preparation and tool execution
++opensimio/     OpenSim table, XML, text, and template I/O
++hsf/           Skull-CoM, event detection, and HSF mechanics
+
+batch/          Four operational multi-trial processing wrappers
+config/         Version-controlled defaults and local-config template
+examples/       Thin single-trial wrappers and focused diagnostics/examples
+input/          Reusable OpenSim setup templates
+models/         Project OpenSim models and geometry
+tests/          Unit and pipeline contract tests
+output/         Default generated-output root
+
+load_project_config.m
+run_static_optimization_analysis.m
 ```
+
+## Recommended development pattern
+
+When extending the toolkit:
+
+1. put reusable scientific/model logic in the appropriate package;
+2. keep `+pipeline` workers non-interactive and deterministic;
+3. keep `examples/` and `batch/` as thin orchestration layers;
+4. use `pipeline.resolveTrialContext()` rather than rebuilding trial paths;
+5. keep study/scientific policy in `project_defaults.m`;
+6. keep machine-specific settings in `project_local.m`;
+7. preserve machine-readable QC and checkpoints between stages; and
+8. add or update contract tests when changing the configuration or path interfaces.
 
 ## Research-use note
 
-Inspect generated models, motion files, marker errors, coordinate audits, detected event times, HSF directions and intervals, force-capacity changes, reserve activations, and OpenSim setup files before interpreting downstream results. Revalidate the assumptions and thresholds whenever the model, experimental protocol, coordinate convention, or trial population changes.
+Inspect generated models, marker errors, coordinate audits, lock-extraction behavior, detected event times, skull-CoM trajectories, HSF directions and support intervals, force-capacity changes, reserve activations, OpenSim setup files, and output audits before interpreting downstream results.
+
+Revalidate model assumptions, thresholds, functional muscle groups, and normalization/statistical definitions whenever the model, coordinate convention, experimental protocol, force-capacity profile, or study population changes.
