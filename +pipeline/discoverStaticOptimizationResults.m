@@ -1,12 +1,12 @@
 function discovery = discoverStaticOptimizationResults( ...
         projectCfg, varargin)
-%DISCOVERSTATICOPTIMIZATIONRESULTS Discover SO force results under outputRoot.
+%DISCOVERSTATICOPTIMIZATIONRESULTS Discover existing SO force results.
 %
 % discovery = pipeline.discoverStaticOptimizationResults(projectCfg)
 %
 % Discovery is driven by files that actually exist rather than by
-% projectCfg.conditions/projectCfg.trials. The function searches
-% recursively for:
+% projectCfg.conditions/projectCfg.trials. By default, the function
+% searches recursively beneath projectCfg.outputRoot for:
 %
 %   *StaticOptimization_force.sto
 %
