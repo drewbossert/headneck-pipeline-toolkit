@@ -241,6 +241,12 @@ function cfg = localTestConfig()
         string(fullfile( ...
             tempdir, ...
             "headneck_outputs"));
+
+    % Keep baseline Process-4 contract tests independent of
+    % machine-local force-capacity settings.
+    cfg.forceCapacity.enabled = false;
+    cfg.forceCapacity.configFile = "";
+    cfg.forceCapacity.applyMode = "target";
 end
 
 

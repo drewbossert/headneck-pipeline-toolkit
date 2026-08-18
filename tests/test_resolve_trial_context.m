@@ -362,6 +362,13 @@ function cfg = localTestConfig()
     cfg.outputRoot = string(fullfile( ...
         tempdir, ...
         "headneck_outputs"));
+
+    % Keep baseline path-contract tests independent of project_local.m.
+    % Strength-config-specific tests enable a profile explicitly through
+    % localEnableStrengthConfig().
+    cfg.forceCapacity.enabled = false;
+    cfg.forceCapacity.configFile = "";
+    cfg.forceCapacity.applyMode = "target";
 end
 
 function testDisabledStrengthConfigPreservesLegacyPaths(testCase)
