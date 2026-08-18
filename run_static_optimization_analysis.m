@@ -222,6 +222,10 @@ if strengthConfigEnabled
         strjoin(discoveredBatchRoots, newline));
 end
 
+if ~isfolder(analysisDirectory)
+    mkdir(analysisDirectory);
+end
+
 manifestFile = ...
     string(fullfile( ...
         analysisDirectory, ...
