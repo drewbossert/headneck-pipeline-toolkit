@@ -50,7 +50,7 @@ function values = extractStableCoordinateValues( ...
     parse(parser, motionInput, modelInput, ...
         coordinateNames, timeWindow, varargin{:});
 
-    motion = modelprep.internal.resolveMotion(motionInput);
+    motion = opensimio.resolveMotion(motionInput);
     modelReport = modelprep.inspectModel(modelInput);
 
     coordinateNames = string(coordinateNames);
