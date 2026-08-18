@@ -5,7 +5,18 @@
 %
 % This script is intentionally located at the repository root rather than
 % under examples/. It discovers completed Static Optimization results from
-% projectCfg.outputRoot and operates on the results that actually exist.
+% the active analysis search root and operates on the results that actually
+% exist.
+%
+% When a canonical force-capacity configuration is enabled, discovery and
+% study-level outputs are restricted to that strength configuration:
+%
+%   <outputRoot>/
+%       static_optimization_configs/
+%           <ConfigId>/
+%
+% When force-capacity configuration is disabled, legacy discovery beneath
+% projectCfg.outputRoot is retained.
 %
 % Workflow:
 %   1. Search recursively for *StaticOptimization_force.sto files.
@@ -16,14 +27,18 @@
 %
 % IMPORTANT:
 %   Pooled analysis assumes the detected results belong to the same
-%   scientific batch/model configuration. The script reports the inferred
-%   BatchRoot values and warns before combining results, but folder layout
-%   alone cannot prove that all scientific settings were identical.
+%   scientific batch/model configuration. Canonical strength-config runs
+%   are scoped to a single ConfigId before discovery. Legacy unconfigured
+%   runs retain the existing BatchRoot audit and warning behavior.
 %
 % Per-trial QC outputs:
 %   <trial>/04_static_optimization/qc/plots/
 %
-% Study-level outputs:
+% Study-level outputs when strength configuration is enabled:
+%   <outputRoot>/static_optimization_configs/<ConfigId>/
+%       static_optimization_analysis/
+%
+% Study-level outputs when strength configuration is disabled:
 %   <outputRoot>/static_optimization_analysis/
 %
 % The existing event-based normalization and 20-80% statistical ROI are
