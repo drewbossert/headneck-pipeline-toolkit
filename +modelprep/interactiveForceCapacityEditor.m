@@ -28,12 +28,16 @@ function app = interactiveForceCapacityEditor(modelFile)
 %
 % Save As writes a new model and an audit CSV.
 
+    projectCfg = load_project_config();
+    modelDir = projectCfg.modelsDirectory;
+
     if nargin < 1 || strlength(string(modelFile)) == 0
 
         [fileName, fileFolder] = ...
             uigetfile( ...
                 {'*.osim','OpenSim model (*.osim)'}, ...
-                'Select OpenSim model');
+                'Select OpenSim model', ...
+                modelDir);
 
         if isequal(fileName,0)
             app = [];
@@ -465,6 +469,9 @@ function app = interactiveForceCapacityEditor(modelFile)
 
     function saveConfig(~,~)
 
+        projectCfg = load_project_config();
+        configDir = projectCfg.configDirectory;
+        
         syncVisibleToMaster();
 
         valueChanged = ...
@@ -488,7 +495,7 @@ function app = interactiveForceCapacityEditor(modelFile)
             return;
         end
 
-        [inputFolder,inputStem,~] = ...
+        [~,inputStem,~] = ...
             fileparts(modelFile);
 
         suggestedName = ...
@@ -499,7 +506,7 @@ function app = interactiveForceCapacityEditor(modelFile)
             uiputfile( ...
                 {'*.json','Force configuration (*.json)'}, ...
                 'Save reusable force configuration', ...
-                fullfile(inputFolder, suggestedName));
+                fullfile(configDir, suggestedName));
 
         if isequal(fileName,0)
             return;
