@@ -22,6 +22,12 @@ function discovery = discoverStaticOptimizationResults( ...
 %   ExcludedTrials
 %       N-by-2 [condition_deg trial_num] numeric array. Default zeros(0,2).
 %
+%   SearchRoot
+%       Optional directory beneath which discovery is performed. When
+%       omitted or empty, projectCfg.outputRoot is used. This allows
+%       callers to restrict discovery to a specific strength-configuration
+%       root without changing projectCfg.outputRoot.
+%
 % RETURN TABLE
 %
 %   ConditionDeg
