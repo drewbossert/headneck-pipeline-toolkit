@@ -94,7 +94,7 @@ function report = auditLockedCoordinates( ...
 
     parse(parser, motionInput, lockValues, varargin{:});
 
-    motion = modelprep.internal.resolveMotion(motionInput);
+    motion = opensimio.resolveMotion(motionInput);
     lockValues = selectAuditRows( ...
         lockValues, parser.Results.AuditOnlyLocked);
 
