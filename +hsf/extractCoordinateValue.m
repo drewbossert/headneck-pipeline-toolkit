@@ -44,7 +44,7 @@ function result = extractCoordinateValue( ...
 
     for index = 1:numel(motion.Labels)
         normalizedLabels(index) = ...
-            hsf.internal.normalizeMotionLabel(motion.Labels(index));
+            opensimio.normalizeMotionLabel(motion.Labels(index));
     end
 
     labelIndex = find(normalizedLabels == coordinateName, 1);
