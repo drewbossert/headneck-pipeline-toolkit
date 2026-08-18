@@ -86,31 +86,11 @@ function result = assessCoordinateFilterSensitivity( ...
     minimumWindowSamples = ...
         double(parser.Results.MinimumWindowSamples);
 
-    %% Load motion
+    %% Resolve motion input
 
-    if ischar(motionInput) || ...
-            (isstring(motionInput) && isscalar(motionInput))
-
-        motionFile = string(motionInput);
-
-        assert(isfile(motionFile), ...
-            "Motion file not found:\n%s", ...
-            motionFile);
-
-        motion = opensimio.readMot(motionFile);
-
-    elseif isstruct(motionInput)
-
-        motion = motionInput;
-
-    else
-
-        error( ...
-            "modelprep:InvalidMotionInput", ...
-            ["motionInput must be an OpenSim motion struct " ...
-             "or path to a .mot file."]);
-
-    end
+    motion = ...
+        opensimio.resolveMotion( ...
+            motionInput);
 
     requiredFields = [
         "Labels"
