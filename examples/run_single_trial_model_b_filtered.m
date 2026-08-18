@@ -25,7 +25,7 @@ fprintf( ...
 
 %% SECTION 1 — SELECT TRIAL
 
-conditionDeg = 45;
+conditionDeg = 15;
 trialNumber = 1;
 
 trial = ...
