@@ -49,10 +49,10 @@ function discovery = discoverStaticOptimizationResults( ...
 %   Status
 %
 % BatchRoot is inferred as the directory immediately above the condition
-% directory. In the canonical layout this is projectCfg.outputRoot. If
-% multiple nested result batches exist beneath outputRoot, different
-% BatchRoot values allow the user-facing analysis wrapper to warn before
-% pooling them.
+% directory. In the canonical layout this is the root containing the
+% condition/trial result tree. When SearchRoot identifies a canonical
+% strength-configuration root, BatchRoot therefore resolves to that
+% configuration root.
 
     assert(isstruct(projectCfg), ...
         "SOResultDiscovery:InvalidProjectConfig", ...
