@@ -17,14 +17,12 @@ function result = extractCoordinateValue( ...
 %
 % Rotational values remain in the units stored by the motion file. For the
 % HSF workflow, gndroll is expected in degrees when inDegrees=yes.
-
     parser = inputParser;
     parser.FunctionName = "hsf.extractCoordinateValue";
 
     addRequired(parser, "motionInput");
     addRequired(parser, "coordinateName", ...
         @(x) ischar(x) || (isstring(x) && isscalar(x)));
-
     addParameter(parser, "TimeWindow", [], ...
         @(x) isempty(x) || ...
         (isnumeric(x) && numel(x) == 2 && x(2) >= x(1)));
@@ -38,10 +36,9 @@ function result = extractCoordinateValue( ...
         @(x) islogical(x) && isscalar(x));
     addParameter(parser, "Tolerance", 1e-6, ...
         @(x) isnumeric(x) && isscalar(x) && x >= 0);
-
     parse(parser, motionInput, coordinateName, varargin{:});
 
-    motion = hsf.internal.resolveMotion(motionInput);
+    motion = opensimio.resolveMotion(motionInput);
     coordinateName = string(coordinateName);
     normalizedLabels = strings(size(motion.Labels));
 
@@ -51,7 +48,6 @@ function result = extractCoordinateValue( ...
     end
 
     labelIndex = find(normalizedLabels == coordinateName, 1);
-
     if isempty(labelIndex)
         error("hsf:CoordinateNotFound", ...
             "Coordinate '%s' was not found in the motion file.", ...
@@ -66,7 +62,6 @@ function result = extractCoordinateValue( ...
 
     mask = motion.Time >= timeWindow(1) & ...
         motion.Time <= timeWindow(2);
-
     if ~any(mask)
         error("hsf:EmptyCoordinateWindow", ...
             "No samples lie in the requested time window.");
@@ -75,7 +70,6 @@ function result = extractCoordinateValue( ...
     values = motion.Data(mask, labelIndex);
     times = motion.Time(mask);
     method = lower(string(parser.Results.Method));
-
     switch method
         case "median"
             value = median(values, "omitnan");
@@ -90,7 +84,6 @@ function result = extractCoordinateValue( ...
                 error("hsf:MissingCoordinateTime", ...
                     "Time is required for Method='at_time'.");
             end
-
             if requestedTime < times(1) || requestedTime > times(end)
                 error("hsf:CoordinateTimeOutsideRange", ...
                     "Requested time lies outside the selected window.");
@@ -103,20 +96,17 @@ function result = extractCoordinateValue( ...
     maximumValue = max(values, [], "omitnan");
     valueRange = maximumValue - minimumValue;
     isConstant = valueRange <= parser.Results.Tolerance;
-
     if parser.Results.RequireConstant && ~isConstant
         error("hsf:CoordinateNotConstant", ...
             ["Coordinate '%s' range %.12g exceeds tolerance %.12g."], ...
             coordinateName, valueRange, parser.Results.Tolerance);
     end
-
     if lower(coordinateName) == "gndroll" && ...
             ~(islogical(motion.InDegrees) && motion.InDegrees)
         error("hsf:GndrollNotInDegrees", ...
             ["The HSF force decomposition expects gndroll in degrees. " ...
              "The motion header does not specify inDegrees=yes."]);
     end
-
     result = struct;
     result.Coordinate = coordinateName;
     result.Value = value;
