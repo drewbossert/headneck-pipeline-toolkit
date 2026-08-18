@@ -130,37 +130,11 @@ function result = filterCoordinateMotion( ...
         numel(coordinateNames), ...
         "coordinateNames contains duplicate entries.");
 
-    %% Load or accept motion input
+    %% Resolve motion input
 
-    sourceFile = "";
-
-    if ischar(motionInput) || ...
-            (isstring(motionInput) && isscalar(motionInput))
-
-        sourceFile = string(motionInput);
-
-        assert(isfile(sourceFile), ...
-            "Motion file not found:\n%s", ...
-            sourceFile);
-
-        motion = opensimio.readMot(sourceFile);
-
-    elseif isstruct(motionInput)
-
-        motion = motionInput;
-
-        if isfield(motion, "FilePath")
-            sourceFile = string(motion.FilePath);
-        end
-
-    else
-
-        error( ...
-            "modelprep:InvalidMotionInput", ...
-            ["motionInput must be an OpenSim motion struct " ...
-             "or a path to a .mot file."]);
-
-    end
+    [motion, sourceFile] = ...
+        opensimio.resolveMotion( ...
+            motionInput);
 
     %% Validate required OpenSim motion fields
 
