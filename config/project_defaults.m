@@ -94,6 +94,7 @@ cfg.requireStaticOptimizationTemplate = true;
 
 % All file-producing pipeline stages should consume this value explicitly.
 % Package-level functions should still default to non-destructive behavior.
+% project_local.m may override this to true for a machine-local workflow.
 cfg.overwriteExisting = false;
 
 %% Expected model structure
