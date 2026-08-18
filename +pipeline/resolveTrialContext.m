@@ -23,13 +23,27 @@ function trial = resolveTrialContext( ...
 %
 % CANONICAL OUTPUT LAYOUT
 %
+% Configuration-independent stages:
+%
 %   <outputRoot>/
 %       <conditionTag>/
 %           <trialTag>/
 %               01_initialization_ik/
 %               02_locked_final_ik/
-%               03_static_optimization_prep/
-%               04_static_optimization/
+%
+% When projectCfg.forceCapacity.enabled is true, configuration-dependent
+% stages are isolated beneath the canonical strength-configuration root:
+%
+%   <outputRoot>/
+%       static_optimization_configs/
+%           <ConfigId>/
+%               <conditionTag>/
+%                   <trialTag>/
+%                       03_static_optimization_prep/
+%                       04_static_optimization/
+%
+% When force-capacity configuration is disabled, Processes 3 and 4 retain
+% the legacy shared trial-root layout.
 %
 % CANONICAL IDENTITY
 %
@@ -122,6 +136,7 @@ function trial = resolveTrialContext( ...
         "conditions"
         "trials"
         "pipeline"
+        "forceCapacity"
     ];
 
     missingTopFields = ...
@@ -154,6 +169,22 @@ function trial = resolveTrialContext( ...
     assert(strlength(markerFilePattern) > 0, ...
         "TrialContext:EmptyMarkerPattern", ...
         "Marker-file pattern must be nonempty.");
+
+    assert(isstruct(projectCfg.forceCapacity) && ...
+        isscalar(projectCfg.forceCapacity), ...
+    "TrialContext:InvalidForceCapacityConfig", ...
+    "projectCfg.forceCapacity must be a scalar struct.");
+
+    assert(isfield( ...
+            projectCfg.forceCapacity, ...
+            "enabled"), ...
+        "TrialContext:ForceCapacityEnabledMissing", ...
+        "projectCfg.forceCapacity.enabled is required.");
+
+    assert(islogical(projectCfg.forceCapacity.enabled) && ...
+            isscalar(projectCfg.forceCapacity.enabled), ...
+        "TrialContext:InvalidForceCapacityEnabled", ...
+        "projectCfg.forceCapacity.enabled must be a logical scalar.");
 
     %% Identity validation
 
@@ -264,6 +295,36 @@ function trial = resolveTrialContext( ...
         projectCfg.outputRoot, ...
         conditionTag, ...
         trialTag));
+
+    %% Strength-dependent Static Optimization root
+
+    strengthConfigEnabled = ...
+        logical(projectCfg.forceCapacity.enabled);
+
+    strengthConfigId = "";
+    strengthConfigRoot = "";
+
+    staticOptimizationTrialRoot = ...
+        trialRoot;
+
+    if strengthConfigEnabled
+
+        strengthContext = ...
+            pipeline.resolveStrengthConfigContext( ...
+                projectCfg);
+
+        strengthConfigId = ...
+            strengthContext.ConfigId;
+
+        strengthConfigRoot = ...
+            strengthContext.Paths.ConfigRoot;
+
+        staticOptimizationTrialRoot = ...
+            string(fullfile( ...
+                strengthConfigRoot, ...
+                conditionTag, ...
+                trialTag));
+    end
 
     %% Process 1 — initialization IK
 
@@ -406,7 +467,7 @@ function trial = resolveTrialContext( ...
     prep = struct;
 
     prep.Directory = string(fullfile( ...
-        trialRoot, ...
+        staticOptimizationTrialRoot, ...
         "03_static_optimization_prep"));
 
     prep.QcDirectory = string(fullfile( ...
@@ -512,7 +573,7 @@ function trial = resolveTrialContext( ...
     staticOptimization = struct;
 
     staticOptimization.Directory = string(fullfile( ...
-        trialRoot, ...
+        staticOptimizationTrialRoot, ...
         "04_static_optimization"));
 
     staticOptimization.ResultsDirectory = string(fullfile( ...
@@ -553,6 +614,8 @@ function trial = resolveTrialContext( ...
     paths = struct;
 
     paths.TrialRoot = trialRoot;
+    paths.StrengthConfigRoot = strengthConfigRoot;
+    paths.StaticOptimizationTrialRoot = staticOptimizationTrialRoot;
     paths.Initialization = initialization;
     paths.ModelB = modelB;
     paths.StaticOptimizationPrep = prep;
@@ -562,7 +625,7 @@ function trial = resolveTrialContext( ...
 
     trial = struct;
 
-    trial.SchemaVersion = 1;
+    trial.SchemaVersion = 2;
 
     trial.ConditionDeg = conditionDeg;
     trial.TrialNumber = trialNumber;
@@ -574,4 +637,7 @@ function trial = resolveTrialContext( ...
 
     trial.Inputs = inputs;
     trial.Paths = paths;
+
+    trial.StrengthConfigEnabled = strengthConfigEnabled;
+    trial.StrengthConfigId = strengthConfigId;
 end
