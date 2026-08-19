@@ -1,0 +1,257 @@
+function pool = discoverStrengthConfigPool(projectCfg, varargin)
+%DISCOVERSTRENGTHCONFIGPOOL Discover candidate strength JSON configurations.
+%
+% pool = soopt.discoverStrengthConfigPool(projectCfg)
+%
+% By default, the configuration directory is inferred from the parent
+% directory of projectCfg.forceCapacity.configFile.
+%
+% The function scans that directory for *.json files and retains only files
+% whose names satisfy pipeline.parseStrengthConfigName.
+%
+% JSON contents are not loaded. Candidate identity is derived only from the
+% filename contract.
+%
+% NAME-VALUE OPTIONS
+%
+%   ConfigDirectory
+%       Optional explicit configuration directory. When omitted or empty,
+%       the directory is inferred from projectCfg.forceCapacity.configFile.
+%
+% RETURN STRUCT
+%
+%   SchemaVersion
+%   ConfigDirectory
+%   Configurations
+%   MuscleGrid
+%   ActuatorGrid
+%   DiscoveredConfigurationCount
+%   ExpectedCartesianCount
+%   IsCompleteCartesianGrid
+%   MissingCombinations
+%
+% Duplicate numeric coordinates are rejected. For example, simultaneously
+% storing both m25p_a5p.json and m25p_a05p.json is ambiguous.
+%
+% This function is intentionally SIDE-EFFECT FREE.
+
+    parser = inputParser;
+    parser.FunctionName = "soopt.discoverStrengthConfigPool";
+
+    addRequired(parser, ...
+        "projectCfg", ...
+        @(x) isstruct(x) && isscalar(x));
+
+    addParameter(parser, ...
+        "ConfigDirectory", ...
+        "", ...
+        @(x) ...
+            (ischar(x) && (isrow(x) || isempty(x))) || ...
+            (isstring(x) && isscalar(x) && ~ismissing(x)));
+
+    parse(parser, projectCfg, varargin{:});
+
+    requestedDirectory = string(parser.Results.ConfigDirectory);
+
+    if strlength(requestedDirectory) > 0
+
+        configDirectory = requestedDirectory;
+
+    else
+
+        assert(isfield(projectCfg, "forceCapacity") && ...
+                isstruct(projectCfg.forceCapacity) && ...
+                isscalar(projectCfg.forceCapacity), ...
+            "StrengthConfigPool:ForceCapacityConfigMissing", ...
+            "projectCfg.forceCapacity must be available when " + ...
+            "ConfigDirectory is not supplied.");
+
+        assert(isfield(projectCfg.forceCapacity, "configFile"), ...
+            "StrengthConfigPool:ConfigFileMissing", ...
+            "projectCfg.forceCapacity.configFile is required when " + ...
+            "ConfigDirectory is not supplied.");
+
+        configFile = string(projectCfg.forceCapacity.configFile);
+
+        assert(isscalar(configFile) && ...
+                ~ismissing(configFile) && ...
+                strlength(configFile) > 0, ...
+            "StrengthConfigPool:ConfigFileMissing", ...
+            "projectCfg.forceCapacity.configFile must be nonempty when " + ...
+            "ConfigDirectory is not supplied.");
+
+        configDirectory = string(fileparts(configFile));
+
+        assert(strlength(configDirectory) > 0, ...
+            "StrengthConfigPool:ConfigDirectoryUnresolved", ...
+            "Could not resolve a parent directory from " + ...
+            "projectCfg.forceCapacity.configFile:\n%s", ...
+            configFile);
+    end
+
+    assert(isfolder(configDirectory), ...
+        "StrengthConfigPool:ConfigDirectoryNotFound", ...
+        "Strength configuration directory was not found:\n%s", ...
+        configDirectory);
+
+    listing = dir(fullfile(configDirectory, "*.json"));
+    nFiles = numel(listing);
+
+    ConfigId = strings(nFiles,1);
+    MusclePercent = nan(nFiles,1);
+    ActuatorPercent = nan(nFiles,1);
+    FileName = strings(nFiles,1);
+    ConfigFile = strings(nFiles,1);
+    keep = false(nFiles,1);
+
+    for iFile = 1:nFiles
+
+        fileName = string(listing(iFile).name);
+        filePath = string(fullfile( ...
+            listing(iFile).folder, ...
+            listing(iFile).name));
+
+        try
+
+            info = pipeline.parseStrengthConfigName(fileName);
+
+        catch exception
+
+            if startsWith( ...
+                    string(exception.identifier), ...
+                    "StrengthConfig:")
+
+                continue;
+            end
+
+            rethrow(exception);
+        end
+
+        keep(iFile) = true;
+
+        ConfigId(iFile) = info.ConfigId;
+        MusclePercent(iFile) = info.MusclePercent;
+        ActuatorPercent(iFile) = info.ActuatorPercent;
+        FileName(iFile) = fileName;
+        ConfigFile(iFile) = filePath;
+    end
+
+    ConfigId = ConfigId(keep);
+    MusclePercent = MusclePercent(keep);
+    ActuatorPercent = ActuatorPercent(keep);
+    FileName = FileName(keep);
+    ConfigFile = ConfigFile(keep);
+
+    configurations = table( ...
+        ConfigId, ...
+        MusclePercent, ...
+        ActuatorPercent, ...
+        FileName, ...
+        ConfigFile);
+
+    if ~isempty(configurations)
+
+        configurations = sortrows( ...
+            configurations, ...
+            {'MusclePercent', 'ActuatorPercent', 'ConfigId'});
+    end
+
+    if ~isempty(configurations)
+
+        coordinateKeys = compose( ...
+            "%g|%g", ...
+            configurations.MusclePercent, ...
+            configurations.ActuatorPercent);
+
+        [uniqueKeys, ~, keyGroup] = unique( ...
+            coordinateKeys, ...
+            "stable");
+
+        keyCounts = accumarray(keyGroup, 1);
+        duplicateKeys = uniqueKeys(keyCounts > 1);
+
+        assert(isempty(duplicateKeys), ...
+            "StrengthConfigPool:DuplicateCoordinates", ...
+            "Multiple configuration JSONs represent the same numeric " + ...
+            "muscle/actuator coordinate: %s", ...
+            strjoin(duplicateKeys, ", "));
+    end
+
+    MuscleGrid = unique( ...
+        configurations.MusclePercent, ...
+        "sorted");
+
+    ActuatorGrid = unique( ...
+        configurations.ActuatorPercent, ...
+        "sorted");
+
+    if isempty(MuscleGrid) || isempty(ActuatorGrid)
+
+        expectedCartesianCount = 0;
+        missingCombinations = localEmptyMissingTable();
+
+    else
+
+        [muscleMesh, actuatorMesh] = ndgrid( ...
+            MuscleGrid, ...
+            ActuatorGrid);
+
+        expectedMuscle = muscleMesh(:);
+        expectedActuator = actuatorMesh(:);
+
+        expectedKeys = compose( ...
+            "%g|%g", ...
+            expectedMuscle, ...
+            expectedActuator);
+
+        actualKeys = compose( ...
+            "%g|%g", ...
+            configurations.MusclePercent, ...
+            configurations.ActuatorPercent);
+
+        isMissing = ~ismember(expectedKeys, actualKeys);
+
+        missingCombinations = table( ...
+            expectedMuscle(isMissing), ...
+            expectedActuator(isMissing), ...
+            'VariableNames', { ...
+                'MusclePercent', ...
+                'ActuatorPercent'});
+
+        if ~isempty(missingCombinations)
+
+            missingCombinations = sortrows( ...
+                missingCombinations, ...
+                {'MusclePercent', 'ActuatorPercent'});
+        end
+
+        expectedCartesianCount = numel(expectedKeys);
+    end
+
+    pool = struct;
+
+    pool.SchemaVersion = 1;
+    pool.ConfigDirectory = configDirectory;
+    pool.Configurations = configurations;
+    pool.MuscleGrid = MuscleGrid;
+    pool.ActuatorGrid = ActuatorGrid;
+    pool.DiscoveredConfigurationCount = height(configurations);
+    pool.ExpectedCartesianCount = expectedCartesianCount;
+
+    pool.IsCompleteCartesianGrid = ...
+        isempty(missingCombinations) && ...
+        height(configurations) == expectedCartesianCount;
+
+    pool.MissingCombinations = missingCombinations;
+end
+
+
+function T = localEmptyMissingTable()
+
+    T = table( ...
+        zeros(0,1), ...
+        zeros(0,1), ...
+        'VariableNames', { ...
+            'MusclePercent', ...
+            'ActuatorPercent'});
+end
