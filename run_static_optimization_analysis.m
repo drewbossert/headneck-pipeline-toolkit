@@ -1,4 +1,4 @@
-K,1%% run_static_optimization_analysis.m
+%% run_static_optimization_analysis.m
 % Study-level Static Optimization QC and optional pooled analysis wrapper.
 %
 % USER-FACING FINAL PIPELINE STAGE
