@@ -141,6 +141,9 @@ function result = runStaticOptimizationTrial( ...
         "requireForceOutput"
         "requireActivationOutput"
         "timeToleranceSec"
+        "requireUnsaturatedActivations"
+        "activationSaturationLimit"
+        "activationSaturationTolerance"
     ];
 
     missingSoConfigFields = ...
