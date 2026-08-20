@@ -359,6 +359,13 @@ analysisCfg.pointsPerPhase = [200 600 200];
 % All reported force/reserve summary statistics use this ROI only.
 analysisCfg.statisticsWindowPercent = [20 80];
 
+% Lift-off-to-re-contact data are cropped from the full piecewise
+% normalization and remapped to this range for pooled analysis.
+analysisCfg.motionOutputWindowPercent = [0 100];
+
+% Primary extensor landmark within the lift-off-to-re-contact motion.
+analysisCfg.extensorLandmarkPercent = 50;
+
 % Functional groups are authoritative ObjectGroups in the model.
 analysisCfg.flexionGroupName = "flexion";
 analysisCfg.extensionGroupName = "extension";
