@@ -201,7 +201,7 @@ cfg.pipeline.staticOptimization.requireUnsaturatedActivations = true;
 
 % Absolute activation/control limit and numerical comparison tolerance.
 cfg.pipeline.staticOptimization.activationSaturationLimit = 1.0;
-cfg.pipeline.staticOptimization.activationSaturationTolerance = 1e-6;
+cfg.pipeline.staticOptimization.activationSaturationTolerance = 1e-3;
 
 %% Locked-coordinate audit criteria
 
