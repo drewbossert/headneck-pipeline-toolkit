@@ -101,6 +101,45 @@ cfg.requireStaticOptimizationTemplate = true;
 % project_local.m may override this to true for a machine-local workflow.
 cfg.overwriteExisting = false;
 
+%% Storage and artifact retention
+
+cfg.storage = struct;
+
+% ---------------------------------------------------------------------
+% Static Optimization artifacts
+% ---------------------------------------------------------------------
+
+cfg.storage.staticOptimization = struct;
+
+% OpenSim-generated controls XML can be several MB per trial and is not
+% required by the current downstream QC/statistical workflow.
+cfg.storage.staticOptimization.keepControlsXml = false;
+
+% Retain reproducibility/scientific outputs by default.
+cfg.storage.staticOptimization.keepSetupXml = true;
+cfg.storage.staticOptimization.keepForceSto = true;
+cfg.storage.staticOptimization.keepActivationSto = true;
+cfg.storage.staticOptimization.keepQc = true;
+cfg.storage.staticOptimization.keepCheckpoint = true;
+
+% ---------------------------------------------------------------------
+% Shared Static Optimization preparation
+% ---------------------------------------------------------------------
+
+cfg.storage.sharedStaticOptimizationPrep = struct;
+
+% These artifacts form the reusable per-trial Process-3 cache.
+% Their retention settings are intended for explicit end-of-workflow
+% pruning, not immediate deletion during configuration searches.
+cfg.storage.sharedStaticOptimizationPrep.keepNeutralModelC = true;
+cfg.storage.sharedStaticOptimizationPrep.keepBodyKinematics = true;
+cfg.storage.sharedStaticOptimizationPrep.keepComCsv = true;
+cfg.storage.sharedStaticOptimizationPrep.keepEventTiming = true;
+cfg.storage.sharedStaticOptimizationPrep.keepHsfMotion = true;
+cfg.storage.sharedStaticOptimizationPrep.keepExternalLoadsXml = true;
+cfg.storage.sharedStaticOptimizationPrep.keepQc = true;
+cfg.storage.sharedStaticOptimizationPrep.keepCheckpoint = true;
+
 %% Expected model structure
 
 cfg.modelValidation = struct;
