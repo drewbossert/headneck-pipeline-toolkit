@@ -267,7 +267,7 @@ function localTouch(filePath)
         "Could not create test file:\n%s", ...
         string(filePath));
 
-    cleaner = onCleanup(@() fclose(fid)); %#ok<NASGU>
+    cleaner = onCleanup(@() fclose(fid));
 
     fprintf(fid, "test");
 end
