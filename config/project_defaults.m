@@ -106,6 +106,22 @@ cfg.overwriteExisting = false;
 cfg.storage = struct;
 
 % ---------------------------------------------------------------------
+% Configuration-specific Static Optimization preparation
+% ---------------------------------------------------------------------
+
+cfg.storage.staticOptimizationPrep = struct;
+
+% Configured Model C is required to rerun Static Optimization without
+% regenerating Process 3.
+cfg.storage.staticOptimizationPrep.keepConfiguredModelC = true;
+
+% Retain force-capacity/configuration QC by default.
+cfg.storage.staticOptimizationPrep.keepQc = true;
+
+% Compact Process-3 checkpoint.
+cfg.storage.staticOptimizationPrep.keepCheckpoint = true;
+
+% ---------------------------------------------------------------------
 % Static Optimization artifacts
 % ---------------------------------------------------------------------
 
