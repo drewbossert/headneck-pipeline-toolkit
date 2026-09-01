@@ -325,6 +325,16 @@ function result = runStaticOptimizationTrial( ...
         return;
     end
 
+    %% Clear stale Process-4 artifacts before overwrite rerun
+
+    if overwrite
+
+        localRemoveExistingProcess4Artifacts( ...
+            paths, ...
+            writeQc, ...
+            saveCheckpoint);
+    end
+
     %% Execute Static Optimization from the prepared XML
 
     runResult = ...
@@ -788,4 +798,34 @@ function result = localMakeResult( ...
 
     result.DurationSeconds = ...
         double(durationSeconds);
+end
+
+function localRemoveExistingProcess4Artifacts( ...
+        paths, writeQc, saveCheckpoint)
+
+    filesToRemove = ...
+        strings(0,1);
+
+    if writeQc
+
+        filesToRemove(end+1,1) = ...
+            string(paths.OutputAuditCsv);
+
+        filesToRemove(end+1,1) = ...
+            string(paths.ActivationAuditCsv);
+    end
+
+    if saveCheckpoint
+
+        filesToRemove(end+1,1) = ...
+            string(paths.CheckpointFile);
+    end
+
+    for iFile = 1:numel(filesToRemove)
+
+        if isfile(filesToRemove(iFile))
+
+            delete(filesToRemove(iFile));
+        end
+    end
 end
