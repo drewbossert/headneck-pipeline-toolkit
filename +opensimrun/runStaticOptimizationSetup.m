@@ -268,7 +268,7 @@ function result = runStaticOptimizationSetup(setupFile, varargin)
             "Expected exactly one StaticOptimization force STO under:\n" + ...
              "%s\nFound %d.", ...
             resultsDirectory, ...
-            numel(forceFiles));
+            numel(forceFiles)); %#ok<*ISCL>
     end
 
     if requireActivationOutput
@@ -306,7 +306,7 @@ function result = runStaticOptimizationSetup(setupFile, varargin)
 
         auditRows = [ ...
             auditRows
-            forceAudit]; %#ok<AGROW>
+            forceAudit];
     end
 
     if strlength(activationFile) > 0
@@ -319,7 +319,7 @@ function result = runStaticOptimizationSetup(setupFile, varargin)
 
         auditRows = [ ...
             auditRows
-            activationAudit]; %#ok<AGROW>
+            activationAudit];
     end
 
     assert(~isempty(auditRows), ...
