@@ -40,6 +40,7 @@ function policy = resolveStorageRetentionPolicy(projectCfg)
         "projectCfg.storage must be a scalar struct.");
 
     allowedTopLevel = [
+        "staticOptimizationPrep"
         "staticOptimization"
         "sharedStaticOptimizationPrep"
     ];
