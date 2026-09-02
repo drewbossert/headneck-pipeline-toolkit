@@ -401,6 +401,10 @@ cfg.analysis.staticOptimization = struct;
 
 analysisCfg = cfg.analysis.staticOptimization;
 
+analysisCfg.selectionMode = "prompt";
+analysisCfg.configId = "";
+analysisCfg.requireFeasibleConfiguration = true;
+
 % Optional exclusions as [condition_deg trial_num].
 analysisCfg.excludedTrials = zeros(0,2);
 
