@@ -167,6 +167,46 @@ function flat = localReadManifestCsv(csvFile)
     opts.VariableNamingRule = ...
         "preserve";
 
+    stringVariables = [
+        "created_at_utc"
+        "requested_mode"
+        "resolved_mode"
+        "config_id"
+        "display_name"
+        "feasibility_status"
+        "feasibility_reason"
+        "search_root"
+        "analysis_directory"
+        "conditions_deg"
+        "trials"
+        "normalized_breaks_percent"
+        "points_per_phase"
+        "statistics_window_percent"
+        "motion_output_window_percent"
+        "excluded_trials"
+        "flexion_group_name"
+        "extension_group_name"
+    ];
+
+    logicalVariables = [
+        "configured"
+        "legacy"
+        "assessment_complete"
+        "is_feasible"
+    ];
+
+    opts = ...
+        setvartype( ...
+            opts, ...
+            cellstr(stringVariables), ...
+            "string");
+
+    opts = ...
+        setvartype( ...
+            opts, ...
+            cellstr(logicalVariables), ...
+            "logical");
+
     detectedNames = ...
         string(opts.VariableNames);
 
