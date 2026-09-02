@@ -394,6 +394,99 @@ cfg.forceCapacity.requireAllEntries = true;
 % schema.
 cfg.forceCapacity.applyStages = "modelC";
 
+%% Static Optimization strength search
+
+cfg.optimization = struct;
+cfg.optimization.staticOptimization = struct;
+
+searchCfg = ...
+    cfg.optimization.staticOptimization;
+
+% ---------------------------------------------------------------------
+% Controller mode
+% ---------------------------------------------------------------------
+
+% Supported modes:
+%
+%   "fixed_grid"
+%       Search the available pre-generated strength configuration pool.
+%
+%   "adaptive_boundary"
+%       Dynamically refine the feasible/infeasible boundary using the 
+%       configured lattive resolution.
+%
+% A possible future "fixed_then_adaptive" mode is intentionally not
+% exposed until hybrid controller behavior is finalized.
+searchCfg.searchMode = "fixed_grid";
+
+% Maximum number of configurations actually executed during one
+% controller invocation.
+searchCfg.maxIterations = 20;
+
+% Analyze and resolve the next proposal without running Process 3/4 or 
+% writing controller outputs.
+searchCfg.dryRun = false;
+
+% Allow an existing incomplete configuration to be rerun.
+searchCfg.overwriteIncompleteConfiguration = true;
+
+% ---------------------------------------------------------------------
+% Fixed-grid search
+% ---------------------------------------------------------------------
+
+searchCfg.fixedGrid = struct;
+
+% Empty delegates candidate discovery to the canonical strength-config
+% discovery logic.
+searchCfg.fixedGrid.configDirectory = "";
+
+% ---------------------------------------------------------------------
+% Adaptive-boundary search
+% ---------------------------------------------------------------------
+
+searchCfg.adaptiveBoundary = struct;
+
+% Lattice resolution in percentage points.
+searchCfg.adaptiveBoundary.incrementPercent = 5;
+
+% Empty bounds are inferred from assessed configuration evidence.
+searchCfg.adaptiveBoundary.muscleBounds = [];
+
+searchCfg.adaptiveBoundary.actuatorBounds = [];
+
+% Empty uses the canonical adaptive configuration location
+searchCfg.adaptiveBoundary.configDirectory = "";
+
+% Empty delegates template resolution to the existing materialization
+% logic.
+searchCfg.adaptiveBoundary.templateConfigFile = "";
+
+% ---------------------------------------------------------------------
+% Controller outputs
+% ---------------------------------------------------------------------
+
+searchCfg.output = struct;
+
+searchCfg.output.writeAnalysis = true;
+
+% Empty uses:
+%   <outputRoot>/static_optimization_configs/grid_search_analysis
+searchCfg.output.analysisDirectory = "";
+
+searchCfg.output.exportFigure = true;
+
+searchCfg.output.figureResolution = 300;
+
+searchCfg.output.writeSearchHistory = true;
+
+% ---------------------------------------------------------------------
+% Console behavior
+% ---------------------------------------------------------------------
+
+searchCfg.printProgress = true;
+
+cfg.optimization.staticOptimization = searchCfg;
+
 %% Static Optimization analysis / plotting
 
 cfg.analysis = struct;
