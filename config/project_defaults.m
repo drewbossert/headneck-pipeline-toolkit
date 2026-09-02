@@ -401,9 +401,59 @@ cfg.analysis.staticOptimization = struct;
 
 analysisCfg = cfg.analysis.staticOptimization;
 
-analysisCfg.selectionMode = "prompt";
-analysisCfg.configId = "";
-analysisCfg.requireFeasibleConfiguration = true;
+% ---------------------------------------------------------------------
+% Static Optimization result-set selection
+% ---------------------------------------------------------------------
+
+analysisCfg.selection = struct;
+
+% Analysis dataset selection mode:
+%
+%   "prompt"
+%       Discover eligible completed strength configurations and present
+%       an interactive selection UI when the analysis starts.
+%
+%   "config"
+%       Analyze the exact configuration named by configId. Intended for
+%       reproducible scripted/noninteractive analysis.
+%
+%   "legacy"
+%       Analyze the historical unconfigured Static Optimization output
+%       tree beneath cfg.outputRoot.
+analysisCfg.selection.mode = "prompt";
+
+% Canonical strength configuration ID used when mode = "config".
+% Example:
+%   "m20p_a35p"
+%
+% This is intentionally a ConfigId rather than a JSON path. Analysis
+% selects an existing result set; it does not configure Model C.
+analysisCfg.selection.configId = "";
+
+% By default, manuscript/statistical analysis is restricted to 
+% configurations that pass the complete feasibility assessment.
+% Set false only for explicit diagnostic analysis of infeasible runs.
+analysisCfg.selection.requireFeasible = true;
+
+% Include the legacy unconfigured output tree as an option in the 
+% interactive selector when legacy SO results are detected.
+analysisCfg.selection.includeLegacyInPrompt = false;
+
+% If only one eligible configuration is discovered in prompt mode,
+% automatically select it instead of displaying a one-item selector.
+analysisCfg.selection.autoSelectSingleCandidate = true;
+
+% ---------------------------------------------------------------------
+% Analysis provenance
+% ---------------------------------------------------------------------
+
+% Write a small context manifest beside study-level analysis outputs.
+analysisCfg.writeContextManifest = true;
+
+% Include configuration identity in exported study-level tables so that
+% copied CSV files retain their scientific provenance outside the output
+% directory heirarchy.
+analysisCfg.includeConfigurationColumns = true;
 
 % Optional exclusions as [condition_deg trial_num].
 analysisCfg.excludedTrials = zeros(0,2);
