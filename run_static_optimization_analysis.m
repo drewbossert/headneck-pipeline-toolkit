@@ -8,12 +8,16 @@
 % the active analysis search root and operates on the results that actually
 % exist.
 %
-% When a canonical force-capacity configuration is enabled, discovery and
-% study-level outputs are restricted to that strength configuration:
+% The analysis result namespace is selected independently of the active
+% model-generation force-capacity configuration through:
+%   projectCfg.analysis.staticOptimization.selection
 %
-%   <outputRoot>/
-%       static_optimization_configs/
-%           <ConfigId>/
+% Canonical strength-config analyses are scoped to:
+%
+%   <outputRoot>/static_optimization_configs/<ConfigId>/
+%
+% Legacy analysis remains available explicitly for historical unconfigured
+% result trees beneath projectCfg.outputRoot.
 %
 % When force-capacity configuration is disabled, legacy discovery beneath
 % projectCfg.outputRoot is retained.
