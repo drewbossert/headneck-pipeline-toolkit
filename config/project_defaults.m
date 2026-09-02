@@ -17,7 +17,7 @@
 
 %% Configuration metadata
 
-cfg.configSchemaVersion = 2;
+cfg.configSchemaVersion = 3;
 cfg.projectName = "headneck-pipeline-toolkit";
 
 %% Repository directories
@@ -429,6 +429,10 @@ analysisCfg.selection.mode = "prompt";
 % This is intentionally a ConfigId rather than a JSON path. Analysis
 % selects an existing result set; it does not configure Model C.
 analysisCfg.selection.configId = "";
+
+% Require the configuration-level assessment to be complete before it may
+% be selected for study-level analysis.
+analysisCfg.selection.requireAssessmentComplete = true;
 
 % By default, manuscript/statistical analysis is restricted to 
 % configurations that pass the complete feasibility assessment.
