@@ -4,13 +4,16 @@ function cfg = load_project_config(varargin)
 % cfg = load_project_config()
 %
 % Name-value options:
-%   RequireLocalConfig  true
-%   ValidatePaths       true
+%   LocalConfigPolicy  "required"
+%       "required"  Load project_local.m and error when it is missing.
+%       "optional"  Load project_local.m when it exists.
+%       "disabled"  Do not load project_local.m.
+%   ValidatePaths      true
 %
 % Configuration order:
 %   1. Detect repository root.
 %   2. Execute config/project_defaults.m.
-%   3. Execute config/project_local.m as machine-specific overrides.
+%   3. Apply config/project_local.m according to LocalConfigPolicy.
 %   4. Migrate deprecated legacy runtime fields.
 %   5. Supply defensive optional defaults.
 %   6. Validate configuration schema.
@@ -35,9 +38,11 @@ function cfg = load_project_config(varargin)
     parser.FunctionName = "load_project_config";
 
     addParameter(parser, ...
-        "RequireLocalConfig", ...
-        true, ...
-        @(x) islogical(x) && isscalar(x));
+        "LocalConfigPolicy", ...
+        "required", ...
+        @(x) ...
+            (ischar(x) && isrow(x)) || ...
+            (isstring(x) && isscalar(x) && ~ismissing(x)));
 
     addParameter(parser, ...
         "ValidatePaths", ...
@@ -45,6 +50,15 @@ function cfg = load_project_config(varargin)
         @(x) islogical(x) && isscalar(x));
 
     parse(parser, varargin{:});
+
+    localConfigPolicy = ...
+        lower(string(parser.Results.LocalConfigPolicy));
+
+    assert(ismember( ...
+            localConfigPolicy, ...
+            ["required", "optional", "disabled"]), ...
+        "ProjectConfig:InvalidLocalConfigPolicy", ...
+        "LocalConfigPolicy must be required, optional, or disabled.");
 
     %% Locate repository
 
@@ -80,11 +94,18 @@ function cfg = load_project_config(varargin)
 
     %% Load machine-specific overrides
 
-    if isfile(localFile)
+    localConfigLoaded = ...
+        false;
+
+    if localConfigPolicy ~= "disabled" && ...
+            isfile(localFile)
 
         run(localFile);
 
-    elseif parser.Results.RequireLocalConfig
+        localConfigLoaded = ...
+            true;
+
+    elseif localConfigPolicy == "required"
 
         error( ...
             "ProjectConfig:LocalConfigMissing", ...
@@ -98,18 +119,16 @@ function cfg = load_project_config(varargin)
     cfg.configDirectory = fullfile(projectRoot, "config");
     cfg.defaultsFile = string(defaultsFile);
     cfg.localFile = string(localFile);
+    cfg.localConfigPolicy = localConfigPolicy;
+    cfg.localConfigLoaded = localConfigLoaded;
 
     %% Migrate legacy fields
 
     cfg = migrateLegacyRuntimeFields(cfg);
 
-    %% Defensive optional machine defaults
+    %% Defensive optional data default
 
-    cfg = setDefault(cfg, "machineName", "");
     cfg = setDefault(cfg, "rawDataRoot", "");
-    cfg = setDefault(cfg, "opensimRoot", "");
-    cfg = setDefault(cfg, "openSimJavaJar", "");
-    cfg = setDefault(cfg, "openSimBinDirectory", "");
 
     %% Validate schema before touching the filesystem
 
