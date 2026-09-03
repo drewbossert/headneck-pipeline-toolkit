@@ -244,7 +244,6 @@ Edit only the machine-specific values in `project_local.m`, such as:
 
 - `cfg.rawDataRoot`;
 - optional `cfg.outputRoot`;
-- OpenSim installation paths;
 - overwrite behavior;
 - batch parallel settings; and
 - an optional machine-local force-capacity JSON profile.
@@ -256,7 +255,7 @@ For configuration-only tests that do not require local paths:
 ```matlab
 cfg = ...
     load_project_config( ...
-        "RequireLocalConfig", false, ...
+        "LocalConfigPolicy", "disabled", ...
         "ValidatePaths", false);
 ```
 
