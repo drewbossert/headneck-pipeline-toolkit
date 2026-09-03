@@ -17,7 +17,7 @@
 
 %% Configuration metadata
 
-cfg.configSchemaVersion = 3;
+cfg.configSchemaVersion = 4;
 cfg.projectName = "headneck-pipeline-toolkit";
 
 %% Repository directories
@@ -254,9 +254,8 @@ cfg.pipeline.staticOptimization.timeToleranceSec = 1e-6;
 % Activation/control saturation is treated as failed Static Optimization.
 cfg.pipeline.staticOptimization.requireUnsaturatedActivations = true;
 
-% Absolute activation/control limit and numerical comparison tolerance.
-cfg.pipeline.staticOptimization.activationSaturationLimit = 1.0;
-cfg.pipeline.staticOptimization.activationSaturationTolerance = 1e-3;
+% Absolute activation/control magnitude at or above this value is saturated.
+cfg.pipeline.staticOptimization.activationSaturationThreshold = 0.999;
 
 %% Locked-coordinate audit criteria
 
