@@ -707,6 +707,9 @@ function search = runStrengthGridSearch(projectCfg, varargin)
         row.Status = ...
             "process3_running";
 
+        row.Process3Executed = ...
+            true;
+
         try
 
             process3 = ...
@@ -801,6 +804,9 @@ function search = runStrengthGridSearch(projectCfg, varargin)
 
         row.Status = ...
             "process4_running";
+
+        row.Process4Executed = ...
+            true;
 
         try
 
@@ -1794,6 +1800,9 @@ function row = localEmptyIterationRow()
     row.DurationSeconds = ...
         NaN;
 
+    row.Process3Executed = ...
+        false;
+
     row.Process3Succeeded = ...
         false;
 
@@ -1802,6 +1811,9 @@ function row = localEmptyIterationRow()
 
     row.Process3SummaryCsv = ...
         "";
+
+    row.Process4Executed = ...
+        false;
 
     row.Process4BatchSucceeded = ...
         false;
