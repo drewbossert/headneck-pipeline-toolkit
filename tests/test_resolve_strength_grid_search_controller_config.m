@@ -132,6 +132,24 @@ function testNormalizesModePathsAndBounds(testCase)
 end
 
 
+function testNormalizesHybridMode(testCase)
+
+    cfg = ...
+        localFixture();
+
+    cfg.optimization.staticOptimization.searchMode = ...
+        "  FIXED_THEN_ADAPTIVE  ";
+
+    controllerCfg = ...
+        soopt.resolveStrengthGridSearchControllerConfig( ...
+            cfg);
+
+    verifyEqual(testCase, ...
+        controllerCfg.SearchMode, ...
+        "fixed_then_adaptive");
+end
+
+
 function testMissingOptimizationConfigFails(testCase)
 
     cfg = ...
