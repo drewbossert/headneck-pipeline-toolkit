@@ -33,8 +33,9 @@ cfg.rawDataRoot = ...
 
 %% Optional force-capacity profile
 %
-% This is an appropriate local override when running a specific sensitivity
-% profile from a machine-local or ignored JSON configuration.
+% This selects a profile for a direct Process-3 run. The Static Optimization
+% strength-search controller uses the explicit fixedGrid and adaptiveBoundary
+% paths in project_defaults.m instead.
 %
 % cfg.forceCapacity.enabled = true;
 % cfg.forceCapacity.configFile = ...
