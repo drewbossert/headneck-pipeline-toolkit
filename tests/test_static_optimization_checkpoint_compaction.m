@@ -61,8 +61,6 @@ function testActivationAuditDropsChannelSummaryOnly(testCase)
     summaryFields = [
         "SchemaVersion"
         "ActivationFile"
-        "SaturationLimit"
-        "SaturationTolerance"
         "SaturationThreshold"
         "Passed"
         "PeakAbsoluteActivation"
@@ -238,16 +236,10 @@ function audit = localActivationAudit()
         struct;
 
     audit.SchemaVersion = ...
-        1;
+        2;
 
     audit.ActivationFile = ...
         "activation.sto";
-
-    audit.SaturationLimit = ...
-        1.0;
-
-    audit.SaturationTolerance = ...
-        1e-3;
 
     audit.SaturationThreshold = ...
         0.999;
