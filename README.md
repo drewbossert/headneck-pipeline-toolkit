@@ -365,7 +365,7 @@ Individual job failures are captured in the batch summary so unrelated trials ca
 cfg.batchProcessing.continueOnError = true;
 ```
 
-### Force-capacity configuration in batch Process 3
+### Force-capacity selection in direct batch Process 3
 
 Batch execution is intentionally non-interactive.
 
@@ -388,6 +388,26 @@ cfg.forceCapacity.applyStages = ...
 ```
 
 `target` mode is recommended for routine pipeline execution because it is idempotent. `scale` mode applies a factor to the model's current value and can compound if applied repeatedly.
+
+`cfg.forceCapacity.configFile` selects one profile for a direct Process-3 run.
+It does not define the candidate pool or template used by the Static
+Optimization strength-search controller. Those resources are configured
+explicitly:
+
+```matlab
+cfg.optimization.staticOptimization.fixedGrid.configDirectory = ...
+    fullfile(cfg.configDirectory);
+
+cfg.optimization.staticOptimization.adaptiveBoundary.templateConfigFile = ...
+    fullfile(cfg.configDirectory, "m15p_a15p.json");
+
+cfg.optimization.staticOptimization.adaptiveBoundary.configDirectory = ...
+    fullfile(cfg.configDirectory, "adaptive_generated");
+```
+
+During a strength search, the controller selects or generates a candidate and
+passes that candidate to Process 3 for the current iteration. A direct
+`cfg.forceCapacity.configFile` selection is therefore not required.
 
 ## Model states
 
