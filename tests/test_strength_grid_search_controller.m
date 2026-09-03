@@ -993,9 +993,7 @@ function [cfg, configDirectory, cleanup] = ...
         false;
 
     cfg.forceCapacity.configFile = ...
-        string(fullfile( ...
-            configDirectory, ...
-            "m25p_a50p.json"));
+        "";
 
     cfg.forceCapacity.applyMode = ...
         "target";
@@ -1027,14 +1025,16 @@ function [cfg, configDirectory, cleanup] = ...
     searchCfg.overwriteIncompleteConfiguration = true;
 
     searchCfg.fixedGrid = struct;
-    searchCfg.fixedGrid.configDirectory = "";
+    searchCfg.fixedGrid.configDirectory = configDirectory;
 
     searchCfg.adaptiveBoundary = struct;
     searchCfg.adaptiveBoundary.incrementPercent = 5;
     searchCfg.adaptiveBoundary.muscleBounds = [];
     searchCfg.adaptiveBoundary.actuatorBounds = [];
-    searchCfg.adaptiveBoundary.configDirectory = "";
-    searchCfg.adaptiveBoundary.templateConfigFile = "";
+    searchCfg.adaptiveBoundary.configDirectory = ...
+        string(fullfile(configDirectory, "adaptive_generated"));
+    searchCfg.adaptiveBoundary.templateConfigFile = ...
+        string(fullfile(configDirectory, "template.json"));
 
     searchCfg.output = struct;
     searchCfg.output.writeAnalysis = true;

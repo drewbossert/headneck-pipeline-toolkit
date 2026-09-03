@@ -51,7 +51,7 @@ function testDiscoversCompleteCartesianPool(testCase)
 end
 
 
-function testDefaultDirectoryComesFromActiveConfigFile(testCase)
+function testDefaultDirectoryComesFromFixedGridConfig(testCase)
 
     [cfg, configDirectory, cleanup] = ...
         localCreateProject(); %#ok<ASGLU>
@@ -196,12 +196,14 @@ end
 function testMissingConfigDirectoryIsRejected(testCase)
 
     cfg = struct;
-    cfg.forceCapacity = struct;
+    cfg.optimization = struct;
+    cfg.optimization.staticOptimization = struct;
+    cfg.optimization.staticOptimization.fixedGrid = struct;
 
-    cfg.forceCapacity.configFile = string(fullfile( ...
+    cfg.optimization.staticOptimization.fixedGrid.configDirectory = ...
+        string(fullfile( ...
         tempdir, ...
-        "headneck_missing_config_pool", ...
-        "m25p_a50p.json"));
+        "headneck_missing_config_pool"));
 
     verifyError(testCase, ...
         @() soopt.discoverStrengthConfigPool(cfg), ...
@@ -225,11 +227,19 @@ function [cfg, configDirectory, cleanup] = localCreateProject()
     cleanup = onCleanup(@() localRemoveTree(root));
 
     cfg = struct;
-    cfg.forceCapacity = struct;
+    cfg.optimization = struct;
+    cfg.optimization.staticOptimization = struct;
+    cfg.optimization.staticOptimization.fixedGrid = struct;
 
-    cfg.forceCapacity.configFile = string(fullfile( ...
-        configDirectory, ...
-        "m25p_a50p.json"));
+    cfg.optimization.staticOptimization.fixedGrid.configDirectory = ...
+        configDirectory;
+
+    cfg.forceCapacity = struct;
+    cfg.forceCapacity.configFile = ...
+        string(fullfile( ...
+            root, ...
+            "unrelated", ...
+            "selected_profile.json"));
 end
 
 
