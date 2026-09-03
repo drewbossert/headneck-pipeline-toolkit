@@ -17,7 +17,7 @@
 
 %% Configuration metadata
 
-cfg.configSchemaVersion = 4;
+cfg.configSchemaVersion = 5;
 cfg.projectName = "headneck-pipeline-toolkit";
 
 %% Repository directories
@@ -378,6 +378,9 @@ cfg.hsf.Parameters.PointPrefix = "ground_force_1_p";
 cfg.forceCapacity = struct;
 
 cfg.forceCapacity.enabled = false;
+
+% Direct Process-3 profile selection only. Strength-search discovery and
+% adaptive generation use their explicit settings below.
 cfg.forceCapacity.configFile = "";
 
 % "target" is recommended for pipeline use because it is idempotent.
@@ -436,9 +439,9 @@ searchCfg.overwriteIncompleteConfiguration = true;
 
 searchCfg.fixedGrid = struct;
 
-% Empty delegates candidate discovery to the canonical strength-config
-% discovery logic.
-searchCfg.fixedGrid.configDirectory = "";
+% Version-controlled pool of pre-generated strength configurations.
+searchCfg.fixedGrid.configDirectory = ...
+    cfg.configDirectory;
 
 % ---------------------------------------------------------------------
 % Adaptive-boundary search
@@ -454,12 +457,18 @@ searchCfg.adaptiveBoundary.muscleBounds = [];
 
 searchCfg.adaptiveBoundary.actuatorBounds = [];
 
-% Empty uses the canonical adaptive configuration location
-searchCfg.adaptiveBoundary.configDirectory = "";
+% Generated configurations remain separate from the fixed-grid pool.
+searchCfg.adaptiveBoundary.configDirectory = ...
+    fullfile( ...
+        cfg.configDirectory, ...
+        "adaptive_generated");
 
-% Empty delegates template resolution to the existing materialization
-% logic.
-searchCfg.adaptiveBoundary.templateConfigFile = "";
+% Structural template with the current complete 80-entry ForceSet. Adaptive
+% generation replaces its muscle/actuator percentages.
+searchCfg.adaptiveBoundary.templateConfigFile = ...
+    fullfile( ...
+        cfg.configDirectory, ...
+        "m15p_a15p.json");
 
 % ---------------------------------------------------------------------
 % Controller outputs
