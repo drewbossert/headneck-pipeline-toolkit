@@ -9,10 +9,6 @@
 % Study/scientific settings belong in project_defaults.m so different
 % machines cannot silently run different experimental configurations.
 
-%% Machine identity
-
-cfg.machineName = "my-machine-name";
-
 %% Raw data location
 
 cfg.rawDataRoot = ...
@@ -26,26 +22,14 @@ cfg.rawDataRoot = ...
 % cfg.outputRoot = ...
 %     "D:\headneck_pipeline_outputs";
 
-%% OpenSim installation
+%% Optional local execution overrides
 
-% Leave empty if OpenSim is already configured when MATLAB starts.
-cfg.opensimRoot = "";
-
-% Optional explicit paths when manual OpenSim configuration is required.
-cfg.openSimJavaJar = "";
-cfg.openSimBinDirectory = "";
-
-%% Shared local execution behavior
-
-cfg.overwriteExisting = false;
-
-%% Batch runtime settings
-
-cfg.batchProcessing.enableParallel = false;
-cfg.batchProcessing.maxWorkers = 4;
-cfg.batchProcessing.continueOnError = true;
-cfg.batchProcessing.poolProfile = "local";
-cfg.batchProcessing.closePoolWhenFinished = false;
+% Uncomment only settings that differ from project_defaults.m.
+%
+% cfg.overwriteExisting = true;
+% cfg.batchProcessing.enableParallel = true;
+% cfg.batchProcessing.maxWorkers = 4;
+% cfg.batchProcessing.poolProfile = "local";
 
 %% Optional force-capacity profile
 %
@@ -55,9 +39,6 @@ cfg.batchProcessing.closePoolWhenFinished = false;
 % cfg.forceCapacity.enabled = true;
 % cfg.forceCapacity.configFile = ...
 %     "C:\path\to\force_capacity_profile.json";
-% cfg.forceCapacity.applyMode = "target";
-% cfg.forceCapacity.requireAllEntries = true;
-% cfg.forceCapacity.applyStages = "modelC";
 
 %% Intentionally NOT overridden here
 %
