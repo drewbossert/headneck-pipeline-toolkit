@@ -413,10 +413,11 @@ searchCfg = ...
 %
 %   "adaptive_boundary"
 %       Dynamically refine the feasible/infeasible boundary using the 
-%       configured lattive resolution.
+%       configured lattice resolution.
 %
-% A possible future "fixed_then_adaptive" mode is intentionally not
-% exposed until hybrid controller behavior is finalized.
+%   "fixed_then_adaptive"
+%       Use fixed-grid proposals until the observed evidence explicitly
+%       brackets the boundary, then transition to adaptive refinement.
 searchCfg.searchMode = "fixed_grid";
 
 % Maximum number of configurations actually executed during one
